@@ -6,9 +6,13 @@ import (
 	"net"
 	"time"
 
+	"github.com/getlantern/quic-go/internal/congestion"
 	"github.com/getlantern/quic-go/internal/handshake"
 	"github.com/getlantern/quic-go/internal/protocol"
 )
+
+// Bandwith (bps)
+type Bandwidth = congestion.Bandwidth
 
 // The StreamID is the ID of a QUIC stream.
 type StreamID = protocol.StreamID
@@ -156,6 +160,9 @@ type Session interface {
 	// ConnectionState returns basic details about the QUIC connection.
 	// Warning: This API should not be considered stable and might change soon.
 	ConnectionState() ConnectionState
+
+	// Bandwidth estimate on connection
+	BandwidthEstimate() Bandwidth
 }
 
 // Config contains all configuration data needed for a QUIC server or client.
