@@ -7,11 +7,11 @@ import (
 	"os"
 	"time"
 
-	quic "github.com/lucas-clemente/quic-go"
-	"github.com/lucas-clemente/quic-go/integrationtests/tools/testlog"
-	"github.com/lucas-clemente/quic-go/integrationtests/tools/testserver"
-	"github.com/lucas-clemente/quic-go/internal/protocol"
-	"github.com/lucas-clemente/quic-go/internal/testdata"
+	quic "github.com/getlantern/quic-go"
+	"github.com/getlantern/quic-go/integrationtests/tools/testlog"
+	"github.com/getlantern/quic-go/integrationtests/tools/testserver"
+	"github.com/getlantern/quic-go/internal/protocol"
+	"github.com/getlantern/quic-go/internal/testdata"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

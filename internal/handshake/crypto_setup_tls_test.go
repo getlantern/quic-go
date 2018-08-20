@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/bifurcation/mint"
-	"github.com/lucas-clemente/quic-go/internal/crypto"
-	"github.com/lucas-clemente/quic-go/internal/mocks/crypto"
-	"github.com/lucas-clemente/quic-go/internal/protocol"
+	"github.com/getlantern/quic-go/internal/crypto"
+	"github.com/getlantern/quic-go/internal/mocks/crypto"
+	"github.com/getlantern/quic-go/internal/protocol"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

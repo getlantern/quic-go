@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lucas-clemente/quic-go/internal/flowcontrol"
-	"github.com/lucas-clemente/quic-go/internal/protocol"
-	"github.com/lucas-clemente/quic-go/internal/wire"
+	"github.com/getlantern/quic-go/internal/flowcontrol"
+	"github.com/getlantern/quic-go/internal/protocol"
+	"github.com/getlantern/quic-go/internal/wire"
 )
 
 type receiveStreamI interface {

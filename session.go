@@ -11,14 +11,14 @@ import (
 	"time"
 
 	"github.com/bifurcation/mint"
-	"github.com/lucas-clemente/quic-go/internal/ackhandler"
-	"github.com/lucas-clemente/quic-go/internal/congestion"
-	"github.com/lucas-clemente/quic-go/internal/flowcontrol"
-	"github.com/lucas-clemente/quic-go/internal/handshake"
-	"github.com/lucas-clemente/quic-go/internal/protocol"
-	"github.com/lucas-clemente/quic-go/internal/utils"
-	"github.com/lucas-clemente/quic-go/internal/wire"
-	"github.com/lucas-clemente/quic-go/qerr"
+	"github.com/getlantern/quic-go/internal/ackhandler"
+	"github.com/getlantern/quic-go/internal/congestion"
+	"github.com/getlantern/quic-go/internal/flowcontrol"
+	"github.com/getlantern/quic-go/internal/handshake"
+	"github.com/getlantern/quic-go/internal/protocol"
+	"github.com/getlantern/quic-go/internal/utils"
+	"github.com/getlantern/quic-go/internal/wire"
+	"github.com/getlantern/quic-go/qerr"
 )
 
 type unpacker interface {

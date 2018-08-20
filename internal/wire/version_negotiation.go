@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"crypto/rand"
 
-	"github.com/lucas-clemente/quic-go/internal/protocol"
-	"github.com/lucas-clemente/quic-go/internal/utils"
+	"github.com/getlantern/quic-go/internal/protocol"
+	"github.com/getlantern/quic-go/internal/utils"
 )
 
 // ComposeGQUICVersionNegotiation composes a Version Negotiation Packet for gQUIC
