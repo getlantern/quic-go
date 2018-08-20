@@ -1277,3 +1277,7 @@ func (s *session) RemoteAddr() net.Addr {
 func (s *session) GetVersion() protocol.VersionNumber {
 	return s.version
 }
+
+func (s *session) BandwidthEstimate() Bandwidth {
+	return s.sentPacketHandler.BandwidthEstimate()
+}

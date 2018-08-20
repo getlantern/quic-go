@@ -3,6 +3,7 @@ package ackhandler
 import (
 	"time"
 
+	"github.com/getlantern/quic-go/internal/congestion"
 	"github.com/getlantern/quic-go/internal/protocol"
 	"github.com/getlantern/quic-go/internal/wire"
 )
@@ -35,6 +36,8 @@ type SentPacketHandler interface {
 
 	GetAlarmTimeout() time.Time
 	OnAlarm() error
+
+	BandwidthEstimate() congestion.Bandwidth
 }
 
 // ReceivedPacketHandler handles ACKs needed to send for incoming packets

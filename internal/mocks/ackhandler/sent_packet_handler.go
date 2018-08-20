@@ -9,6 +9,7 @@ import (
 	time "time"
 
 	ackhandler "github.com/getlantern/quic-go/internal/ackhandler"
+	congestion "github.com/getlantern/quic-go/internal/congestion"
 	protocol "github.com/getlantern/quic-go/internal/protocol"
 	wire "github.com/getlantern/quic-go/internal/wire"
 	gomock "github.com/golang/mock/gomock"
@@ -35,6 +36,18 @@ func NewMockSentPacketHandler(ctrl *gomock.Controller) *MockSentPacketHandler {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockSentPacketHandler) EXPECT() *MockSentPacketHandlerMockRecorder {
 	return m.recorder
+}
+
+// BandwidthEstimate mocks base method
+func (m *MockSentPacketHandler) BandwidthEstimate() congestion.Bandwidth {
+	ret := m.ctrl.Call(m, "BandwidthEstimate")
+	ret0, _ := ret[0].(congestion.Bandwidth)
+	return ret0
+}
+
+// BandwidthEstimate indicates an expected call of BandwidthEstimate
+func (mr *MockSentPacketHandlerMockRecorder) BandwidthEstimate() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthEstimate", reflect.TypeOf((*MockSentPacketHandler)(nil).BandwidthEstimate))
 }
 
 // DequeuePacketForRetransmission mocks base method
