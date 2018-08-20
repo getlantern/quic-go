@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/getlantern/quic-go/integrationtests/tools/proxy"
+	"github.com/getlantern/quic-go/integrationtests/tools/testserver"
+	"github.com/getlantern/quic-go/internal/protocol"
 	_ "github.com/lucas-clemente/quic-clients" // download clients
-	"github.com/lucas-clemente/quic-go/integrationtests/tools/proxy"
-	"github.com/lucas-clemente/quic-go/integrationtests/tools/testserver"
-	"github.com/lucas-clemente/quic-go/internal/protocol"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

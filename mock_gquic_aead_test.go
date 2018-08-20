@@ -7,8 +7,8 @@ package quic
 import (
 	reflect "reflect"
 
+	protocol "github.com/getlantern/quic-go/internal/protocol"
 	gomock "github.com/golang/mock/gomock"
-	protocol "github.com/lucas-clemente/quic-go/internal/protocol"
 )
 
 // MockGQUICAEAD is a mock of GQUICAEAD interface

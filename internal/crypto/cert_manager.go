@@ -7,7 +7,7 @@ import (
 	"hash/fnv"
 	"time"
 
-	"github.com/lucas-clemente/quic-go/qerr"
+	"github.com/getlantern/quic-go/qerr"
 )
 
 // CertManager manages the certificates sent by the server

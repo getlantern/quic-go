@@ -8,12 +8,12 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/getlantern/quic-go/internal/handshake"
+	"github.com/getlantern/quic-go/internal/protocol"
+	"github.com/getlantern/quic-go/internal/testdata"
+	"github.com/getlantern/quic-go/internal/utils"
+	"github.com/getlantern/quic-go/internal/wire"
 	"github.com/golang/mock/gomock"
-	"github.com/lucas-clemente/quic-go/internal/handshake"
-	"github.com/lucas-clemente/quic-go/internal/protocol"
-	"github.com/lucas-clemente/quic-go/internal/testdata"
-	"github.com/lucas-clemente/quic-go/internal/utils"
-	"github.com/lucas-clemente/quic-go/internal/wire"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

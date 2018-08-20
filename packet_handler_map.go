@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lucas-clemente/quic-go/internal/protocol"
-	"github.com/lucas-clemente/quic-go/internal/utils"
-	"github.com/lucas-clemente/quic-go/internal/wire"
+	"github.com/getlantern/quic-go/internal/protocol"
+	"github.com/getlantern/quic-go/internal/utils"
+	"github.com/getlantern/quic-go/internal/wire"
 )
 
 // The packetHandlerMap stores packetHandlers, identified by connection ID.
@@ -39,7 +39,7 @@ func newPacketHandlerMap(conn net.PacketConn, connIDLen int, logger utils.Logger
 		connIDLen:                 connIDLen,
 		handlers:                  make(map[string]packetHandler),
 		deleteClosedSessionsAfter: protocol.ClosedSessionDeleteTimeout,
-		logger:                    logger,
+		logger: logger,
 	}
 	go m.listen()
 	return m
