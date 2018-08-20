@@ -1,3 +1,21 @@
+This is a private fork.  To use, clone this repository and perform the following additional 
+setup locally:
+
+```
+git remote add upstream git@github.com:lucas-clemente/quic-go.git
+git remote set-url --push upstream DISABLE
+```
+
+To take upstream changes (into master for example):
+
+```
+git fetch upstream
+git rebase upstream/master
+```
+
+
+
+
 # A QUIC implementation in pure Go
 
 <img src="docs/quic.png" width=303 height=124>
