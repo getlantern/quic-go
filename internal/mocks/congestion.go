@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 	time "time"
 
+	congestion "github.com/getlantern/quic-go/internal/congestion"
 	protocol "github.com/getlantern/quic-go/internal/protocol"
 	gomock "github.com/golang/mock/gomock"
 )
@@ -33,6 +34,18 @@ func NewMockSendAlgorithm(ctrl *gomock.Controller) *MockSendAlgorithm {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockSendAlgorithm) EXPECT() *MockSendAlgorithmMockRecorder {
 	return m.recorder
+}
+
+// BandwidthEstimate mocks base method
+func (m *MockSendAlgorithm) BandwidthEstimate() congestion.Bandwidth {
+	ret := m.ctrl.Call(m, "BandwidthEstimate")
+	ret0, _ := ret[0].(congestion.Bandwidth)
+	return ret0
+}
+
+// BandwidthEstimate indicates an expected call of BandwidthEstimate
+func (mr *MockSendAlgorithmMockRecorder) BandwidthEstimate() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthEstimate", reflect.TypeOf((*MockSendAlgorithm)(nil).BandwidthEstimate))
 }
 
 // GetCongestionWindow mocks base method
@@ -68,23 +81,23 @@ func (mr *MockSendAlgorithmMockRecorder) OnConnectionMigration() *gomock.Call {
 }
 
 // OnPacketAcked mocks base method
-func (m *MockSendAlgorithm) OnPacketAcked(arg0 protocol.PacketNumber, arg1, arg2 protocol.ByteCount, arg3 time.Time) {
-	m.ctrl.Call(m, "OnPacketAcked", arg0, arg1, arg2, arg3)
+func (m *MockSendAlgorithm) OnPacketAcked(arg0 protocol.PacketNumber, arg1, arg2 protocol.ByteCount, arg3 time.Time, arg4 protocol.PacketNumber) {
+	m.ctrl.Call(m, "OnPacketAcked", arg0, arg1, arg2, arg3, arg4)
 }
 
 // OnPacketAcked indicates an expected call of OnPacketAcked
-func (mr *MockSendAlgorithmMockRecorder) OnPacketAcked(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnPacketAcked", reflect.TypeOf((*MockSendAlgorithm)(nil).OnPacketAcked), arg0, arg1, arg2, arg3)
+func (mr *MockSendAlgorithmMockRecorder) OnPacketAcked(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnPacketAcked", reflect.TypeOf((*MockSendAlgorithm)(nil).OnPacketAcked), arg0, arg1, arg2, arg3, arg4)
 }
 
 // OnPacketLost mocks base method
-func (m *MockSendAlgorithm) OnPacketLost(arg0 protocol.PacketNumber, arg1, arg2 protocol.ByteCount) {
-	m.ctrl.Call(m, "OnPacketLost", arg0, arg1, arg2)
+func (m *MockSendAlgorithm) OnPacketLost(arg0 protocol.PacketNumber, arg1, arg2 protocol.ByteCount, arg3 time.Time, arg4 protocol.PacketNumber) {
+	m.ctrl.Call(m, "OnPacketLost", arg0, arg1, arg2, arg3, arg4)
 }
 
 // OnPacketLost indicates an expected call of OnPacketLost
-func (mr *MockSendAlgorithmMockRecorder) OnPacketLost(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnPacketLost", reflect.TypeOf((*MockSendAlgorithm)(nil).OnPacketLost), arg0, arg1, arg2)
+func (mr *MockSendAlgorithmMockRecorder) OnPacketLost(arg0, arg1, arg2, arg3, arg4 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OnPacketLost", reflect.TypeOf((*MockSendAlgorithm)(nil).OnPacketLost), arg0, arg1, arg2, arg3, arg4)
 }
 
 // OnPacketSent mocks base method

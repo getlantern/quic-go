@@ -13,6 +13,7 @@ import (
 	"github.com/bifurcation/mint"
 	"github.com/getlantern/quic-go/internal/ackhandler"
 	"github.com/getlantern/quic-go/internal/congestion"
+	"github.com/getlantern/quic-go/internal/congestion/bbr"
 	"github.com/getlantern/quic-go/internal/flowcontrol"
 	"github.com/getlantern/quic-go/internal/handshake"
 	"github.com/getlantern/quic-go/internal/protocol"
@@ -412,7 +413,39 @@ var newTLSClientSession = func(
 
 func (s *session) preSetup() {
 	s.rttStats = &congestion.RTTStats{}
-	s.sentPacketHandler = ackhandler.NewSentPacketHandler(s.rttStats, s.logger, s.version)
+
+	// cargo culted from elsewhere, max packet size is protocol dependent
+	remoteAddr := s.conn.RemoteAddr()
+	maxPacketSize := protocol.ByteCount(protocol.MinInitialPacketSize)
+	// If this is not a UDP address, we don't know anything about the MTU.
+	// Use the minimum size of an Initial packet as the max packet size.
+	if udpAddr, ok := remoteAddr.(*net.UDPAddr); ok {
+		// If ip is not an IPv4 address, To4 returns nil.
+		// Note that there might be some corner cases, where this is not correct.
+		// See https://stackoverflow.com/questions/22751035/golang-distinguish-ipv4-ipv6.
+		if udpAddr.IP.To4() == nil {
+			maxPacketSize = protocol.MaxPacketSizeIPv6
+		} else {
+			maxPacketSize = protocol.MaxPacketSizeIPv4
+		}
+	}
+	cs := bbr.NewBBRSender(
+		s.rttStats,
+		protocol.InitialCongestionWindow,
+		protocol.DefaultMaxCongestionWindow,
+		maxPacketSize,
+	)
+
+	// cubic (default)
+	// cs := congestion.NewCubicSender(
+	// 	congestion.DefaultClock{},
+	// 	rttStats,
+	// 	false,
+	// 	protocol.InitialCongestionWindow,
+	// 	protocol.DefaultMaxCongestionWindow,
+	// )
+
+	s.sentPacketHandler = ackhandler.NewSentPacketHandler(s.rttStats, cs, s.logger, s.version)
 	s.connFlowController = flowcontrol.NewConnectionFlowController(
 		protocol.ReceiveConnectionFlowControlWindow,
 		protocol.ByteCount(s.config.MaxReceiveConnectionFlowControlWindow),

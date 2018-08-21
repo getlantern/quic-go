@@ -64,7 +64,7 @@ var _ = Describe("Cubic Sender", func() {
 		sender.MaybeExitSlowStart()
 		for i := 0; i < n; i++ {
 			ackedPacketNumber++
-			sender.OnPacketAcked(ackedPacketNumber, protocol.DefaultTCPMSS, bytesInFlight, clock.Now())
+			sender.OnPacketAcked(ackedPacketNumber, protocol.DefaultTCPMSS, bytesInFlight, clock.Now(), 0)
 		}
 		bytesInFlight -= protocol.ByteCount(n) * protocol.DefaultTCPMSS
 		clock.Advance(time.Millisecond)
@@ -73,14 +73,14 @@ var _ = Describe("Cubic Sender", func() {
 	LoseNPacketsLen := func(n int, packetLength protocol.ByteCount) {
 		for i := 0; i < n; i++ {
 			ackedPacketNumber++
-			sender.OnPacketLost(ackedPacketNumber, packetLength, bytesInFlight)
+			sender.OnPacketLost(ackedPacketNumber, packetLength, bytesInFlight, clock.Now(), 0)
 		}
 		bytesInFlight -= protocol.ByteCount(n) * packetLength
 	}
 
 	// Does not increment acked_packet_number_.
 	LosePacket := func(number protocol.PacketNumber) {
-		sender.OnPacketLost(number, protocol.DefaultTCPMSS, bytesInFlight)
+		sender.OnPacketLost(number, protocol.DefaultTCPMSS, bytesInFlight, clock.Now(), 0)
 		bytesInFlight -= protocol.DefaultTCPMSS
 	}
 
@@ -596,7 +596,7 @@ var _ = Describe("Cubic Sender", func() {
 		defaultMaxCongestionWindowPackets := protocol.DefaultMaxCongestionWindow / protocol.DefaultTCPMSS
 		for i := 1; i < int(defaultMaxCongestionWindowPackets); i++ {
 			sender.MaybeExitSlowStart()
-			sender.OnPacketAcked(protocol.PacketNumber(i), 1350, sender.GetCongestionWindow(), clock.Now())
+			sender.OnPacketAcked(protocol.PacketNumber(i), 1350, sender.GetCongestionWindow(), clock.Now(), 0)
 		}
 		Expect(sender.GetCongestionWindow()).To(Equal(protocol.DefaultMaxCongestionWindow))
 	})
