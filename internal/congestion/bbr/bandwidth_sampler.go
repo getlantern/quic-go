@@ -1,10 +1,11 @@
 package bbr
 
 import (
+	"math"
 	"time"
 
-	"github.com/lucas-clemente/quic-go/protocol"
-	"github.com/lucas-clemente/quic-go/utils"
+	"github.com/getlantern/quic-go/internal/congestion"
+	"github.com/getlantern/quic-go/internal/protocol"
 )
 
 // BandwidthSampler keeps track of sent and acknowledged packets and outputs a
@@ -87,6 +88,17 @@ import (
 // up until an ack for a packet that was sent after OnAppLimited() was called.
 // Note that while the scenario above is not the only scenario when the
 // connection is app-limited, the approach works in other cases too.
+
+const (
+	BandwidthInfinite congestion.Bandwidth = math.MaxUint64
+)
+
+func MinBandwidth(a, b congestion.Bandwidth) congestion.Bandwidth {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 type bandwidthSampler struct {
 	// The total number of congestion controlled bytes sent during the connection.
@@ -184,9 +196,9 @@ func (s *bandwidthSampler) OnPacketAcknowledged(ackTime time.Time, packetNumber 
 
 	// Infinite rate indicates that the sampler is supposed to discard the
 	// current send rate sample and use only the ack rate.
-	sendRate := protocol.BandwidthInfinite
+	sendRate := BandwidthInfinite
 	if sentPacket.sentTime.After(sentPacket.lastAckedPacketSentTime) {
-		sendRate = protocol.BandwidthFromDelta(sentPacket.totalBytesSent-sentPacket.totalBytesSentAtLastAckedPacket, sentPacket.sentTime.Sub(sentPacket.lastAckedPacketSentTime))
+		sendRate = congestion.BandwidthFromDelta(sentPacket.totalBytesSent-sentPacket.totalBytesSentAtLastAckedPacket, sentPacket.sentTime.Sub(sentPacket.lastAckedPacketSentTime))
 	}
 
 	// During the slope calculation, ensure that ack time of the current packet is
@@ -197,10 +209,10 @@ func (s *bandwidthSampler) OnPacketAcknowledged(ackTime time.Time, packetNumber 
 		return bandwidthSample{}
 	}
 
-	ackRate := protocol.BandwidthFromDelta(s.totalBytesAcked-sentPacket.totalBytesAckedAtTheLastAckedPacket, ackTime.Sub(sentPacket.lastAckedPacketAckTime))
+	ackRate := congestion.BandwidthFromDelta(s.totalBytesAcked-sentPacket.totalBytesAckedAtTheLastAckedPacket, ackTime.Sub(sentPacket.lastAckedPacketAckTime))
 
 	return bandwidthSample{
-		bandwidth: utils.MinBandwidth(sendRate, ackRate),
+		bandwidth: MinBandwidth(sendRate, ackRate),
 		// Note: this sample does not account for delayed acknowledgement time.  This
 		// means that the RTT measurements here can be artificially high, especially
 		// on low bandwidth connections.

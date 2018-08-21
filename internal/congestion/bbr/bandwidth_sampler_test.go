@@ -3,7 +3,8 @@ package bbr
 import (
 	"time"
 
-	"github.com/lucas-clemente/quic-go/protocol"
+	"github.com/getlantern/quic-go/internal/congestion"
+	"github.com/getlantern/quic-go/internal/protocol"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -74,7 +75,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 		timeBetweenPackets := 10 * time.Millisecond
 
 		// Send packets at the constant bandwidth
-		expectedBandwidth := protocol.BandwidthFromDelta(regularPacketSize*100, time.Second)
+		expectedBandwidth := congestion.BandwidthFromDelta(regularPacketSize*100, time.Second)
 		p := protocol.PacketNumber(1)
 		for ; p < 20; p++ {
 			sendPacket(p, true)
@@ -99,7 +100,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 
 	It("tests the sampler during regular windowed sender scenario with fixed CWND of 20", func() {
 		timeBetweenPackets := time.Millisecond
-		expectedBandwidth := protocol.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
+		expectedBandwidth := congestion.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
 		send40PacketsAndAckFirst20(timeBetweenPackets)
 
 		// Ack the packets 21 to 40, arriving at the correct bandwidth.
@@ -115,7 +116,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 
 	It("test the sampler in a scenario where 50% of packets is consistently lost", func() {
 		timeBetweenPackets := time.Millisecond
-		expectedBandwidth := protocol.BandwidthFromDelta(regularPacketSize, timeBetweenPackets) / 2
+		expectedBandwidth := congestion.BandwidthFromDelta(regularPacketSize, timeBetweenPackets) / 2
 
 		// Send 20 packets, each 1 ms apart.
 		for i := protocol.PacketNumber(1); i <= 20; i++ {
@@ -153,7 +154,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 	// Should be functionally consistent in behavior with the SendWithLosses test.
 	It("tests the sampler in a scenario where the 50% of packets are not congestion controlled", func() {
 		timeBetweenPackets := time.Millisecond
-		expectedBandwidth := protocol.BandwidthFromDelta(regularPacketSize, timeBetweenPackets) / 2
+		expectedBandwidth := congestion.BandwidthFromDelta(regularPacketSize, timeBetweenPackets) / 2
 
 		// Send 20 packets, each 1 ms apart. Every even packet is not congestion
 		// controlled.
@@ -194,14 +195,14 @@ var _ = Describe("Bandwidth Sampler", func() {
 
 	It("Simulate a situation where ACKs arrive in burst and earlier than usual, thus producing an ACK rate which is higher than the original send rate", func() {
 		timeBetweenPackets := time.Millisecond
-		expectedBandwidth := protocol.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
+		expectedBandwidth := congestion.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
 
 		send40PacketsAndAckFirst20(timeBetweenPackets)
 		// Simulate an RTT somewhat lower than the one for 1-to-21 transmission.
 		clock = clock.Add(15 * timeBetweenPackets)
 
 		// Ack the packets 21 to 40 almost immediately at once.
-		var lastBandwidth protocol.Bandwidth
+		var lastBandwidth congestion.Bandwidth
 		// this value is higher than in Chrome, because this test otherfails on the CIs
 		ridiculouslySmallTimeDelta := 200 * time.Microsecond
 		for i := protocol.PacketNumber(21); i <= 40; i++ {
@@ -217,7 +218,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 
 	It("tests receiving ACK packets in the reverse order", func() {
 		timeBetweenPackets := time.Millisecond
-		expectedBandwidth := protocol.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
+		expectedBandwidth := congestion.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
 
 		send40PacketsAndAckFirst20(timeBetweenPackets)
 
@@ -241,7 +242,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 
 	It("tests the app-limited logic", func() {
 		timeBetweenPackets := time.Millisecond
-		expectedBandwidth := protocol.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
+		expectedBandwidth := congestion.BandwidthFromDelta(regularPacketSize, timeBetweenPackets)
 
 		send40PacketsAndAckFirst20(timeBetweenPackets)
 		// We are now app-limited. Ack 21 to 40 as usual, but do not send anything for now
@@ -289,7 +290,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 		rtt := 800 * time.Millisecond
 		numPackets := 10
 		numBytes := protocol.ByteCount(numPackets) * regularPacketSize
-		realBandwidth := protocol.BandwidthFromDelta(numBytes, rtt)
+		realBandwidth := congestion.BandwidthFromDelta(numBytes, rtt)
 
 		for i := protocol.PacketNumber(1); i <= 10; i++ {
 			sendPacket(i, true)
@@ -298,7 +299,7 @@ var _ = Describe("Bandwidth Sampler", func() {
 
 		clock = clock.Add(rtt - time.Duration(numPackets)*timeBetweenPackets)
 
-		var lastSample protocol.Bandwidth
+		var lastSample congestion.Bandwidth
 		for i := protocol.PacketNumber(1); i <= 10; i++ {
 			sample := ackPacket(i)
 			Expect(sample.bandwidth).To(BeNumerically(">", lastSample))

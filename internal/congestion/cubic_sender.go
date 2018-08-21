@@ -149,6 +149,7 @@ func (c *cubicSender) OnPacketAcked(
 	ackedBytes protocol.ByteCount,
 	priorInFlight protocol.ByteCount,
 	eventTime time.Time,
+	leastUnacked protocol.PacketNumber,
 ) {
 	c.largestAckedPacketNumber = utils.MaxPacketNumber(ackedPacketNumber, c.largestAckedPacketNumber)
 	if c.InRecovery() {
@@ -166,6 +167,8 @@ func (c *cubicSender) OnPacketLost(
 	packetNumber protocol.PacketNumber,
 	lostBytes protocol.ByteCount,
 	priorInFlight protocol.ByteCount,
+	eventTime time.Time,
+	leastUnacked protocol.PacketNumber,
 ) {
 	// TCP NewReno (RFC6582) says that once a loss occurs, any losses in packets
 	// already sent should be treated as a single loss event, since it's expected.

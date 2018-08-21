@@ -52,7 +52,7 @@ type sentPacketHandler struct {
 
 	bytesInFlight protocol.ByteCount
 
-	congestion congestion.SendAlgorithmWithDebugInfo
+	congestion congestion.SendAlgorithm
 	rttStats   *congestion.RTTStats
 
 	handshakeComplete bool
@@ -80,15 +80,7 @@ type sentPacketHandler struct {
 }
 
 // NewSentPacketHandler creates a new sentPacketHandler
-func NewSentPacketHandler(rttStats *congestion.RTTStats, logger utils.Logger, version protocol.VersionNumber) SentPacketHandler {
-	congestion := congestion.NewCubicSender(
-		congestion.DefaultClock{},
-		rttStats,
-		false, /* don't use reno since chromium doesn't (why?) */
-		protocol.InitialCongestionWindow,
-		protocol.DefaultMaxCongestionWindow,
-	)
-
+func NewSentPacketHandler(rttStats *congestion.RTTStats, congestion congestion.SendAlgorithm, logger utils.Logger, version protocol.VersionNumber) SentPacketHandler {
 	return &sentPacketHandler{
 		packetHistory:      newSentPacketHistory(),
 		stopWaitingManager: stopWaitingManager{},
@@ -230,7 +222,7 @@ func (h *sentPacketHandler) ReceivedAck(ackFrame *wire.AckFrame, withPacketNumbe
 			return err
 		}
 		if p.includedInBytesInFlight {
-			h.congestion.OnPacketAcked(p.PacketNumber, p.Length, priorInFlight, rcvTime)
+			h.congestion.OnPacketAcked(p.PacketNumber, p.Length, priorInFlight, rcvTime, h.lowestPacketNotConfirmedAcked)
 		}
 	}
 
@@ -364,7 +356,7 @@ func (h *sentPacketHandler) detectLostPackets(now time.Time, priorInFlight proto
 		// the bytes in flight need to be reduced no matter if this packet will be retransmitted
 		if p.includedInBytesInFlight {
 			h.bytesInFlight -= p.Length
-			h.congestion.OnPacketLost(p.PacketNumber, p.Length, priorInFlight)
+			h.congestion.OnPacketLost(p.PacketNumber, p.Length, priorInFlight, now, h.lowestPacketNotConfirmedAcked)
 		}
 		if p.canBeRetransmitted {
 			// queue the packet for retransmission, and report the loss to the congestion controller

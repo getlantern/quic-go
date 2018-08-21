@@ -1,11 +1,11 @@
 package bbr
 
-import "github.com/lucas-clemente/quic-go/protocol"
+import "github.com/getlantern/quic-go/internal/congestion"
 
 type roundTripCount uint64
 
 type sample struct {
-	bandwidth protocol.Bandwidth
+	bandwidth congestion.Bandwidth
 	time      roundTripCount
 }
 
@@ -43,13 +43,13 @@ type windowedFilter struct {
 	// Best estimate is element 0.
 	estimates [3]sample
 
-	compare func(a, b protocol.Bandwidth) bool
+	compare func(a, b congestion.Bandwidth) bool
 }
 
 func newWindowedFilter(windowLength roundTripCount) windowedFilter {
 	return windowedFilter{
 		windowLength: windowLength,
-		compare: func(a, b protocol.Bandwidth) bool { // this results in a max filter
+		compare: func(a, b congestion.Bandwidth) bool { // this results in a max filter
 			return a >= b
 		},
 	}
@@ -57,7 +57,7 @@ func newWindowedFilter(windowLength roundTripCount) windowedFilter {
 
 // Update updates best estimates with |sample|, and expires and updates best
 // estimates as necessary.
-func (w *windowedFilter) Update(newBandwidth protocol.Bandwidth, newTime roundTripCount) {
+func (w *windowedFilter) Update(newBandwidth congestion.Bandwidth, newTime roundTripCount) {
 	// Reset all estimates if they have not yet been initialized, if new sample
 	// is a new best, or if the newest recorded estimate is too old.
 	if w.estimates[0].bandwidth == 0 || w.compare(newBandwidth, w.estimates[0].bandwidth) || newTime-w.estimates[2].time > w.windowLength {
@@ -111,21 +111,21 @@ func (w *windowedFilter) Update(newBandwidth protocol.Bandwidth, newTime roundTr
 }
 
 // Reset resets all estimates to new sample.
-func (w *windowedFilter) Reset(newBandwidth protocol.Bandwidth, newTime roundTripCount) {
+func (w *windowedFilter) Reset(newBandwidth congestion.Bandwidth, newTime roundTripCount) {
 	newSample := sample{bandwidth: newBandwidth, time: newTime}
 	w.estimates[0] = newSample
 	w.estimates[1] = newSample
 	w.estimates[2] = newSample
 }
 
-func (w *windowedFilter) GetBest() protocol.Bandwidth {
+func (w *windowedFilter) GetBest() congestion.Bandwidth {
 	return w.estimates[0].bandwidth
 }
 
-func (w *windowedFilter) GetSecondBest() protocol.Bandwidth {
+func (w *windowedFilter) GetSecondBest() congestion.Bandwidth {
 	return w.estimates[1].bandwidth
 }
 
-func (w *windowedFilter) GetThirdBest() protocol.Bandwidth {
+func (w *windowedFilter) GetThirdBest() congestion.Bandwidth {
 	return w.estimates[2].bandwidth
 }

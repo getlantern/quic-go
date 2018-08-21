@@ -3,7 +3,7 @@ package bbr
 import (
 	"time"
 
-	"github.com/lucas-clemente/quic-go/protocol"
+	"github.com/getlantern/quic-go/internal/protocol"
 )
 
 // connectionStateOnSentPacket represents the information about a sent packet

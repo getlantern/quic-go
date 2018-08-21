@@ -3,13 +3,13 @@ package bbr
 import (
 	"time"
 
-	"github.com/lucas-clemente/quic-go/protocol"
+	"github.com/getlantern/quic-go/internal/congestion"
 )
 
 type bandwidthSample struct {
 	// The bandwidth at that particular sample. Zero if no valid bandwidth sample
 	// is available.
-	bandwidth protocol.Bandwidth
+	bandwidth congestion.Bandwidth
 	// The RTT measurement at this particular sample.  Zero if no RTT sample is
 	// available.  Does not correct for delayed ack time.
 	rtt time.Duration
