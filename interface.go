@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/lucas-clemente/quic-go/internal/congestion"
 	"github.com/lucas-clemente/quic-go/internal/handshake"
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 	"github.com/lucas-clemente/quic-go/logging"
@@ -34,6 +35,9 @@ type Token struct {
 	RemoteAddr   string
 	SentTime     time.Time
 }
+
+// Bandwidth (bps)
+type Bandwidth = congestion.Bandwidth
 
 // A ClientToken is a token received by the client.
 // It can be used to skip address validation on future connection attempts.
@@ -195,6 +199,9 @@ type Connection interface {
 	SendMessage([]byte) error
 	// ReceiveMessage gets a message received in a datagram, as specified in RFC 9221.
 	ReceiveMessage() ([]byte, error)
+
+	// BandwidthEstimate gets the current estimate of bandwidth in bps
+	BandwidthEstimate() Bandwidth
 }
 
 // An EarlyConnection is a connection that is handshaking.

@@ -508,6 +508,7 @@ var _ = Describe("SentPacketHandler", func() {
 
 		It("should call MaybeExitSlowStart and OnPacketAcked", func() {
 			rcvTime := time.Now().Add(-5 * time.Second)
+			cong.EXPECT().BandwidthEstimate().Times(2)
 			cong.EXPECT().OnPacketSent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(3)
 			gomock.InOrder(
 				cong.EXPECT().MaybeExitSlowStart(), // must be called before packets are acked
@@ -523,6 +524,7 @@ var _ = Describe("SentPacketHandler", func() {
 		})
 
 		It("doesn't call OnPacketAcked when a retransmitted packet is acked", func() {
+			cong.EXPECT().BandwidthEstimate().Times(3)
 			cong.EXPECT().OnPacketSent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2)
 			handler.SentPacket(ackElicitingPacket(&Packet{PacketNumber: 1, SendTime: time.Now().Add(-time.Hour)}))
 			handler.SentPacket(ackElicitingPacket(&Packet{PacketNumber: 2}))
@@ -542,6 +544,7 @@ var _ = Describe("SentPacketHandler", func() {
 		})
 
 		It("doesn't call OnPacketLost when a Path MTU probe packet is lost", func() {
+			cong.EXPECT().BandwidthEstimate().Times(2)
 			cong.EXPECT().OnPacketSent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(2)
 			var mtuPacketDeclaredLost bool
 			handler.SentPacket(ackElicitingPacket(&Packet{
@@ -564,6 +567,7 @@ var _ = Describe("SentPacketHandler", func() {
 		})
 
 		It("calls OnPacketAcked and OnPacketLost with the right bytes_in_flight value", func() {
+			cong.EXPECT().BandwidthEstimate().Times(4)
 			cong.EXPECT().OnPacketSent(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(4)
 			handler.SentPacket(ackElicitingPacket(&Packet{PacketNumber: 1, SendTime: time.Now().Add(-time.Hour)}))
 			handler.SentPacket(ackElicitingPacket(&Packet{PacketNumber: 2, SendTime: time.Now().Add(-30 * time.Minute)}))
