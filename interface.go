@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/lucas-clemente/quic-go/internal/congestion"
 	"github.com/lucas-clemente/quic-go/internal/handshake"
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 )
@@ -15,6 +16,9 @@ type StreamID = protocol.StreamID
 
 // A VersionNumber is a QUIC version number.
 type VersionNumber = protocol.VersionNumber
+
+// Bandwidth (bps)
+type Bandwidth = congestion.Bandwidth
 
 // A Cookie can be used to verify the ownership of the client address.
 type Cookie = handshake.Cookie
@@ -147,6 +151,9 @@ type Session interface {
 	// ConnectionState returns basic details about the QUIC connection.
 	// Warning: This API should not be considered stable and might change soon.
 	ConnectionState() ConnectionState
+
+	// Bandwidth estimate on connection
+	BandwidthEstimate() Bandwidth
 }
 
 // Config contains all configuration data needed for a QUIC server or client.

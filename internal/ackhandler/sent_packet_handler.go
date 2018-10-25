@@ -51,7 +51,7 @@ type sentPacketHandler struct {
 
 	bytesInFlight protocol.ByteCount
 
-	congestion congestion.SendAlgorithm
+	congestion congestion.SendAlgorithmWithDebugInfo
 	rttStats   *congestion.RTTStats
 
 	handshakeComplete bool
@@ -95,6 +95,10 @@ func NewSentPacketHandler(rttStats *congestion.RTTStats, logger utils.Logger, ve
 		logger:        logger,
 		version:       version,
 	}
+}
+
+func (h *sentPacketHandler) BandwidthEstimate() congestion.Bandwidth {
+	return h.congestion.BandwidthEstimate()
 }
 
 func (h *sentPacketHandler) lowestUnacked() protocol.PacketNumber {
