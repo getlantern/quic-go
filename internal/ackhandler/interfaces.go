@@ -3,6 +3,7 @@ package ackhandler
 import (
 	"time"
 
+	"github.com/lucas-clemente/quic-go/internal/congestion"
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 	"github.com/lucas-clemente/quic-go/internal/wire"
 )
@@ -34,6 +35,9 @@ type SentPacketHandler interface {
 
 	GetLossDetectionTimeout() time.Time
 	OnLossDetectionTimeout() error
+
+	// GetBandwidthEstimate gets the current estimate of bandwidth in bps
+	GetBandwidthEstimate() congestion.Bandwidth
 }
 
 type sentPacketTracker interface {
