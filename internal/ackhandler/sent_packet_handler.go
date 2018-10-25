@@ -3,6 +3,7 @@ package ackhandler
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/lucas-clemente/quic-go/internal/congestion"
@@ -45,9 +46,10 @@ func newPacketNumberSpace(initialPN protocol.PacketNumber) *packetNumberSpace {
 }
 
 type sentPacketHandler struct {
-	initialPackets   *packetNumberSpace
-	handshakePackets *packetNumberSpace
-	appDataPackets   *packetNumberSpace
+	bandwidthEstimate uint64
+	initialPackets    *packetNumberSpace
+	handshakePackets  *packetNumberSpace
+	appDataPackets    *packetNumberSpace
 
 	// Do we know that the peer completed address validation yet?
 	// Always true for the server.
@@ -256,6 +258,7 @@ func (h *sentPacketHandler) sentPacketImpl(packet *Packet) bool /* is ack-elicit
 }
 
 func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime time.Time) error {
+	defer h.updateBandwidthEstimate()
 	pnSpace := h.getPacketNumberSpace(encLevel)
 
 	largestAcked := ack.LargestAcked()
@@ -502,6 +505,7 @@ func (h *sentPacketHandler) setLossDetectionTimer() {
 }
 
 func (h *sentPacketHandler) detectAndRemoveLostPackets(now time.Time, encLevel protocol.EncryptionLevel) ([]*Packet, error) {
+	defer h.updateBandwidthEstimate()
 	pnSpace := h.getPacketNumberSpace(encLevel)
 	pnSpace.lossTime = time.Time{}
 
@@ -819,4 +823,12 @@ func (h *sentPacketHandler) GetStats() *quictrace.TransportState {
 		InSlowStart:      h.congestion.InSlowStart(),
 		InRecovery:       h.congestion.InRecovery(),
 	}
+}
+
+func (h *sentPacketHandler) updateBandwidthEstimate() {
+	atomic.StoreUint64(&h.bandwidthEstimate, uint64(h.congestion.BandwidthEstimate()))
+}
+
+func (h *sentPacketHandler) GetBandwidthEstimate() congestion.Bandwidth {
+	return congestion.Bandwidth(atomic.LoadUint64(&h.bandwidthEstimate))
 }

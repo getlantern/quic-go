@@ -3,6 +3,7 @@ package ackhandler
 import (
 	"time"
 
+	"github.com/lucas-clemente/quic-go/internal/congestion"
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 	"github.com/lucas-clemente/quic-go/internal/wire"
 	"github.com/lucas-clemente/quic-go/quictrace"
@@ -50,6 +51,8 @@ type SentPacketHandler interface {
 
 	// report some congestion statistics. For tracing only.
 	GetStats() *quictrace.TransportState
+	// GetBandwidthEstimate gets the current estimate of bandwidth in bps
+	GetBandwidthEstimate() congestion.Bandwidth
 }
 
 type sentPacketTracker interface {
