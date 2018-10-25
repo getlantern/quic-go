@@ -3,6 +3,7 @@ package ackhandler
 import (
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/lucas-clemente/quic-go/internal/congestion"
@@ -54,9 +55,10 @@ func newPacketNumberSpace(initialPN protocol.PacketNumber, skipPNs bool, rttStat
 }
 
 type sentPacketHandler struct {
-	initialPackets   *packetNumberSpace
-	handshakePackets *packetNumberSpace
-	appDataPackets   *packetNumberSpace
+	bandwidthEstimate uint64
+	initialPackets    *packetNumberSpace
+	handshakePackets  *packetNumberSpace
+	appDataPackets    *packetNumberSpace
 
 	// Do we know that the peer completed address validation yet?
 	// Always true for the server.
@@ -289,6 +291,7 @@ func (h *sentPacketHandler) sentPacketImpl(packet *Packet) bool /* is ack-elicit
 }
 
 func (h *sentPacketHandler) ReceivedAck(ack *wire.AckFrame, encLevel protocol.EncryptionLevel, rcvTime time.Time) (bool /* contained 1-RTT packet */, error) {
+	defer h.updateBandwidthEstimate()
 	pnSpace := h.getPacketNumberSpace(encLevel)
 
 	largestAcked := ack.LargestAcked()
@@ -574,6 +577,7 @@ func (h *sentPacketHandler) setLossDetectionTimer() {
 }
 
 func (h *sentPacketHandler) detectLostPackets(now time.Time, encLevel protocol.EncryptionLevel) error {
+	defer h.updateBandwidthEstimate()
 	pnSpace := h.getPacketNumberSpace(encLevel)
 	pnSpace.lossTime = time.Time{}
 
@@ -858,4 +862,12 @@ func (h *sentPacketHandler) SetHandshakeConfirmed() {
 	// We don't send PTOs for application data packets before the handshake completes.
 	// Make sure the timer is armed now, if necessary.
 	h.setLossDetectionTimer()
+}
+
+func (h *sentPacketHandler) updateBandwidthEstimate() {
+	atomic.StoreUint64(&h.bandwidthEstimate, uint64(h.congestion.BandwidthEstimate()))
+}
+
+func (h *sentPacketHandler) GetBandwidthEstimate() congestion.Bandwidth {
+	return congestion.Bandwidth(atomic.LoadUint64(&h.bandwidthEstimate))
 }

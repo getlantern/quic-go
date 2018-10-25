@@ -2148,3 +2148,7 @@ func (s *connection) NextConnection() Connection {
 	s.streamsMap.UseResetMaps()
 	return s
 }
+
+func (s *connection) BandwidthEstimate() Bandwidth {
+	return s.sentPacketHandler.GetBandwidthEstimate()
+}
