@@ -2005,3 +2005,7 @@ func (s *session) NextSession() Session {
 	s.streamsMap.UseResetMaps()
 	return s
 }
+
+func (s *session) BandwidthEstimate() Bandwidth {
+	return s.sentPacketHandler.GetBandwidthEstimate()
+}
