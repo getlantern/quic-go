@@ -3,6 +3,7 @@ package ackhandler
 import (
 	"fmt"
 	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/lucas-clemente/quic-go/internal/congestion"
@@ -42,6 +43,8 @@ func newPacketNumberSpace(initialPN protocol.PacketNumber) *packetNumberSpace {
 }
 
 type sentPacketHandler struct {
+	bandwidthEstimate uint64
+
 	nextSendTime time.Time
 
 	initialPackets   *packetNumberSpace
@@ -169,6 +172,8 @@ func (h *sentPacketHandler) sentPacketImpl(packet *Packet) bool /* is ack-elicit
 }
 
 func (h *sentPacketHandler) ReceivedAck(ackFrame *wire.AckFrame, withPacketNumber protocol.PacketNumber, encLevel protocol.EncryptionLevel, rcvTime time.Time) error {
+	defer h.updateBandwidthEstimate()
+
 	pnSpace := h.getPacketNumberSpace(encLevel)
 
 	largestAcked := ackFrame.LargestAcked()
@@ -362,6 +367,7 @@ func (h *sentPacketHandler) detectLostPackets(
 	encLevel protocol.EncryptionLevel,
 	priorInFlight protocol.ByteCount,
 ) error {
+	defer h.updateBandwidthEstimate()
 	pnSpace := h.getPacketNumberSpace(encLevel)
 	pnSpace.lossTime = time.Time{}
 
@@ -626,4 +632,12 @@ func (h *sentPacketHandler) GetStats() *quictrace.TransportState {
 		InSlowStart:      h.congestion.InSlowStart(),
 		InRecovery:       h.congestion.InRecovery(),
 	}
+}
+
+func (h *sentPacketHandler) updateBandwidthEstimate() {
+	atomic.StoreUint64(&h.bandwidthEstimate, uint64(h.congestion.BandwidthEstimate()))
+}
+
+func (h *sentPacketHandler) GetBandwidthEstimate() congestion.Bandwidth {
+	return congestion.Bandwidth(atomic.LoadUint64(&h.bandwidthEstimate))
 }

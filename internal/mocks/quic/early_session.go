@@ -12,6 +12,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	quic "github.com/lucas-clemente/quic-go"
+	congestion "github.com/lucas-clemente/quic-go/internal/congestion"
 	protocol "github.com/lucas-clemente/quic-go/internal/protocol"
 )
 
@@ -66,6 +67,18 @@ func (m *MockEarlySession) AcceptUniStream(arg0 context.Context) (quic.ReceiveSt
 func (mr *MockEarlySessionMockRecorder) AcceptUniStream(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AcceptUniStream", reflect.TypeOf((*MockEarlySession)(nil).AcceptUniStream), arg0)
+}
+
+// BandwidthEstimate mocks base method
+func (m *MockEarlySession) BandwidthEstimate() congestion.Bandwidth {
+	ret := m.ctrl.Call(m, "BandwidthEstimate")
+	ret0, _ := ret[0].(congestion.Bandwidth)
+	return ret0
+}
+
+// BandwidthEstimate indicates an expected call of BandwidthEstimate
+func (mr *MockEarlySessionMockRecorder) BandwidthEstimate() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthEstimate", reflect.TypeOf((*MockEarlySession)(nil).BandwidthEstimate))
 }
 
 // CloseWithError mocks base method

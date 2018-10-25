@@ -1467,3 +1467,7 @@ func (s *session) getPerspective() protocol.Perspective {
 func (s *session) GetVersion() protocol.VersionNumber {
 	return s.version
 }
+
+func (s *session) BandwidthEstimate() Bandwidth {
+	return s.sentPacketHandler.GetBandwidthEstimate()
+}

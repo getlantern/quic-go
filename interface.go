@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/lucas-clemente/quic-go/internal/congestion"
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 	"github.com/lucas-clemente/quic-go/quictrace"
 )
@@ -26,6 +27,9 @@ type Token struct {
 	RemoteAddr   string
 	SentTime     time.Time
 }
+
+// Bandwidth (bps)
+type Bandwidth = congestion.Bandwidth
 
 // A ClientToken is a token received by the client.
 // It can be used to skip address validation on future connection attempts.
@@ -184,6 +188,8 @@ type Session interface {
 	// ConnectionState returns basic details about the QUIC connection.
 	// Warning: This API should not be considered stable and might change soon.
 	ConnectionState() tls.ConnectionState
+	// BandwidthEstimate gets the current estimate of bandwidth in bps
+	BandwidthEstimate() Bandwidth
 }
 
 // An EarlySession is a session that is handshaking.
