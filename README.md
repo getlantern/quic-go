@@ -1,3 +1,46 @@
+This is a private fork.  To use, clone this repository as `$GOPATH/github.com/lucas-clemente/quic-go`
+and perform the following additional setup locally:
+
+```
+git remote add upstream git@github.com:lucas-clemente/quic-go.git
+git remote set-url --push upstream DISABLE
+```
+
+To take upstream changes (into master for example):
+
+** Make sure to push a tag with the current master before executing a rebase to preserve any
+references pointed at the current commit.
+
+```
+git fetch upstream
+git tag snapshot_<version>
+git push origin --tags
+git rebase upstream/master
+...
+```
+
+*Help!* I rebased and now something is complaining about a commit that doesn't exist!
+
+You may still have the commit locally, just check it out, tag it and push the tag to the origin.
+If you don't have it locally github likely still has it and you can use the api to create a branch
+or tag using the commit hash.  See https://stackoverflow.com/questions/10098095/git-can-i-view-the-reflog-of-a-remote
+
+
+
+If including this fork in a project using go modules, specify the following to use version X.Y.Z
+```
+replace github.com/lucas-clemente/quic-go => github.com/getlantern/quic-go vX.Y.Z
+```
+
+This fork allows certain customizations and exposes some internal details that
+are necessary for lantern/oquic development but may not be fully in spec
+with QUIC or are not currently justifiable/understood needs upstream.
+
+These include things like:
+* making it possible to exclude SNI information
+* exposing internal bandwidth estimates from congestion control algorithms
+* making the quic packet size externally customizable
+
 # A QUIC implementation in pure Go
 
 <img src="docs/quic.png" width=303 height=124>
