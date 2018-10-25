@@ -9,6 +9,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	congestion "github.com/lucas-clemente/quic-go/internal/congestion"
 	protocol "github.com/lucas-clemente/quic-go/internal/protocol"
 )
 
@@ -75,6 +76,18 @@ func (m *MockSendAlgorithmWithDebugInfos) HasPacingBudget() bool {
 func (mr *MockSendAlgorithmWithDebugInfosMockRecorder) HasPacingBudget() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HasPacingBudget", reflect.TypeOf((*MockSendAlgorithmWithDebugInfos)(nil).HasPacingBudget))
+}
+
+// BandwidthEstimate mocks base method
+func (m *MockSendAlgorithmWithDebugInfos) BandwidthEstimate() congestion.Bandwidth {
+	ret := m.ctrl.Call(m, "BandwidthEstimate")
+	ret0, _ := ret[0].(congestion.Bandwidth)
+	return ret0
+}
+
+// BandwidthEstimate indicates an expected call of BandwidthEstimate
+func (mr *MockSendAlgorithmWithDebugInfosMockRecorder) BandwidthEstimate() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthEstimate", reflect.TypeOf((*MockSendAlgorithmWithDebugInfos)(nil).BandwidthEstimate))
 }
 
 // InRecovery mocks base method
