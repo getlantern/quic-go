@@ -118,6 +118,7 @@ var _ = Describe("HTTP3 Server hotswap test", func() {
 					Transport: &http3.RoundTripper{
 						TLSClientConfig: &tls.Config{
 							RootCAs: testdata.GetRootCA(),
+							ServerName: "localhost",
 						},
 						DisableCompression: true,
 						QuicConfig: getQuicConfig(&quic.Config{

@@ -264,11 +264,13 @@ var _ = Describe("Handshake tests", func() {
 					runServer(getTLSConfig())
 					conn, err := net.ListenUDP("udp", nil)
 					Expect(err).ToNot(HaveOccurred())
+					cfg := getTLSClientConfig()
+					cfg.ServerName = "foo.bar"
 					_, err = quic.Dial(
 						conn,
 						server.Addr(),
 						"foo.bar",
-						getTLSClientConfig(),
+						cfg,
 						clientConfig,
 					)
 					Expect(err).To(HaveOccurred())

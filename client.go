@@ -227,17 +227,19 @@ func newClient(
 ) (*client, error) {
 	if tlsConf == nil {
 		tlsConf = &tls.Config{}
-	} else {
-		tlsConf = tlsConf.Clone()
-	}
-	if tlsConf.ServerName == "" {
+		// ServerName is only defaulted to the hostname given
+		// if there is no tls.Config given.  If a tls.Config
+		// is given with a blank ServerName, no ServerName is
+		// used.  This is similar to standard tls package
+		// usage.
 		sni, _, err := net.SplitHostPort(host)
 		if err != nil {
 			// It's ok if net.SplitHostPort returns an error - it could be a hostname/IP address without a port.
 			sni = host
 		}
-
 		tlsConf.ServerName = sni
+	} else {
+		tlsConf = tlsConf.Clone()
 	}
 
 	// check that all versions are actually supported
