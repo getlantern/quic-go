@@ -132,6 +132,7 @@ var _ = BeforeSuite(func() {
 	root.AddCert(ca)
 	tlsClientConfig = &tls.Config{
 		RootCAs:    root,
+		ServerName: "localhost",
 		NextProtos: []string{alpn},
 	}
 
