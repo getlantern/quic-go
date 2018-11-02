@@ -150,8 +150,6 @@ func newClient(
 ) (*client, error) {
 	if tlsConf == nil {
 		tlsConf = &tls.Config{}
-	}
-	if tlsConf.ServerName == "" {
 		var err error
 		tlsConf.ServerName, _, err = net.SplitHostPort(host)
 		if err != nil {
