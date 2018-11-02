@@ -163,9 +163,11 @@ var _ = Describe("Handshake tests", func() {
 				})
 
 				It("errors if the server name doesn't match", func() {
+					cfg := getTLSClientConfig()
+					cfg.ServerName = "127.0.0.1"
 					_, err := quic.DialAddr(
 						fmt.Sprintf("127.0.0.1:%d", server.Addr().(*net.UDPAddr).Port),
-						getTLSClientConfig(),
+						cfg,
 						clientConfig,
 					)
 					Expect(err).To(MatchError("CRYPTO_ERROR: x509: cannot validate certificate for 127.0.0.1 because it doesn't contain any IP SANs"))

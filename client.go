@@ -191,8 +191,11 @@ func newClient(
 ) (*client, error) {
 	if tlsConf == nil {
 		tlsConf = &tls.Config{}
-	}
-	if tlsConf.ServerName == "" {
+		// ServerName is only defaulted to the hostname given
+		// if there is no tls.Config given.  If a tls.Config
+		// is given with a blank ServerName, no ServerName is
+		// used.  This is similar to standard tls package
+		// usage.
 		sni := host
 		if strings.IndexByte(sni, ':') != -1 {
 			var err error
@@ -201,7 +204,6 @@ func newClient(
 				return nil, err
 			}
 		}
-
 		tlsConf.ServerName = sni
 	}
 

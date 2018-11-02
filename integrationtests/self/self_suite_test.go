@@ -28,6 +28,7 @@ func getTLSConfig() *tls.Config {
 func getTLSClientConfig() *tls.Config {
 	return &tls.Config{
 		RootCAs:    testdata.GetRootCA(),
+		ServerName: "localhost",
 		NextProtos: []string{alpn},
 	}
 }
