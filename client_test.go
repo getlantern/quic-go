@@ -222,6 +222,7 @@ var _ = Describe("Client", func() {
 				return sess
 			}
 			tracer.EXPECT().StartedConnection(packetConn.addr, addr, protocol.VersionTLS, gomock.Any(), gomock.Any())
+			tlsConf.ServerName = "test.com"
 			_, err := Dial(
 				packetConn,
 				addr,
