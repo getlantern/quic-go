@@ -51,6 +51,8 @@ type cryptoSetup struct {
 
 	messageChan chan []byte
 
+	connectionState ConnectionState
+
 	readEncLevel  protocol.EncryptionLevel
 	writeEncLevel protocol.EncryptionLevel
 
@@ -239,6 +241,13 @@ func (h *cryptoSetup) RunHandshake() error {
 			return
 		}
 		close(handshakeComplete)
+	}()
+
+	defer func() {
+		cs := conn.ConnectionState()
+		h.connectionState.HandshakeComplete = cs.HandshakeComplete
+		h.connectionState.ServerName = cs.ServerName
+		h.connectionState.PeerCertificates = cs.PeerCertificates
 	}()
 
 	select {
@@ -525,6 +534,5 @@ func (h *cryptoSetup) Open1RTT(dst, src []byte, pn protocol.PacketNumber, ad []b
 }
 
 func (h *cryptoSetup) ConnectionState() ConnectionState {
-	// TODO: return the connection state
-	return ConnectionState{}
+	return h.connectionState
 }
