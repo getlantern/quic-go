@@ -1,6 +1,7 @@
 package congestion
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/lucas-clemente/quic-go/internal/utils"
@@ -17,10 +18,10 @@ const (
 
 // RTTStats provides round-trip statistics
 type RTTStats struct {
-	minRTT        time.Duration
-	latestRTT     time.Duration
-	smoothedRTT   time.Duration
-	meanDeviation time.Duration
+	minRTT        uint64 // time.Duration
+	latestRTT     uint64 // time.Duration
+	smoothedRTT   uint64 // time.Duration
+	meanDeviation uint64 // time.Duration
 }
 
 // NewRTTStats makes a properly initialized RTTStats object
@@ -30,27 +31,32 @@ func NewRTTStats() *RTTStats {
 
 // MinRTT Returns the minRTT for the entire connection.
 // May return Zero if no valid updates have occurred.
-func (r *RTTStats) MinRTT() time.Duration { return r.minRTT }
+func (r *RTTStats) MinRTT() time.Duration { return time.Duration(atomic.LoadUint64(&r.minRTT)) }
 
 // LatestRTT returns the most recent rtt measurement.
 // May return Zero if no valid updates have occurred.
-func (r *RTTStats) LatestRTT() time.Duration { return r.latestRTT }
+func (r *RTTStats) LatestRTT() time.Duration { return time.Duration(atomic.LoadUint64(&r.latestRTT)) }
 
 // SmoothedRTT returns the EWMA smoothed RTT for the connection.
 // May return Zero if no valid updates have occurred.
-func (r *RTTStats) SmoothedRTT() time.Duration { return r.smoothedRTT }
+func (r *RTTStats) SmoothedRTT() time.Duration {
+	return time.Duration(atomic.LoadUint64(&r.smoothedRTT))
+}
 
 // SmoothedOrInitialRTT returns the EWMA smoothed RTT for the connection.
 // If no valid updates have occurred, it returns the initial RTT.
 func (r *RTTStats) SmoothedOrInitialRTT() time.Duration {
-	if r.smoothedRTT != 0 {
-		return r.smoothedRTT
+	d := atomic.LoadUint64(&r.smoothedRTT)
+	if d != 0 {
+		return time.Duration(d)
 	}
 	return defaultInitialRTT
 }
 
 // MeanDeviation gets the mean deviation
-func (r *RTTStats) MeanDeviation() time.Duration { return r.meanDeviation }
+func (r *RTTStats) MeanDeviation() time.Duration {
+	return time.Duration(atomic.LoadUint64(&r.meanDeviation))
+}
 
 // UpdateRTT updates the RTT based on a new sample.
 func (r *RTTStats) UpdateRTT(sendDelta, ackDelay time.Duration, now time.Time) {
@@ -62,40 +68,47 @@ func (r *RTTStats) UpdateRTT(sendDelta, ackDelay time.Duration, now time.Time) {
 	// ackDelay but the raw observed sendDelta, since poor clock granularity at
 	// the client may cause a high ackDelay to result in underestimation of the
 	// r.minRTT.
-	if r.minRTT == 0 || r.minRTT > sendDelta {
-		r.minRTT = sendDelta
+	minRTT := time.Duration(atomic.LoadUint64(&r.minRTT))
+	if minRTT == 0 || minRTT > sendDelta {
+		minRTT = sendDelta
+		atomic.StoreUint64(&r.minRTT, uint64(minRTT))
 	}
 
 	// Correct for ackDelay if information received from the peer results in a
 	// an RTT sample at least as large as minRTT. Otherwise, only use the
 	// sendDelta.
 	sample := sendDelta
-	if sample-r.minRTT >= ackDelay {
+	if sample-minRTT >= ackDelay {
 		sample -= ackDelay
 	}
-	r.latestRTT = sample
+	atomic.StoreUint64(&r.latestRTT, uint64(sample))
 	// First time call.
-	if r.smoothedRTT == 0 {
-		r.smoothedRTT = sample
-		r.meanDeviation = sample / 2
+	smoothedRTT := time.Duration(atomic.LoadUint64(&r.smoothedRTT))
+	if smoothedRTT == 0 {
+		atomic.StoreUint64(&r.smoothedRTT, uint64(sample))
+		atomic.StoreUint64(&r.meanDeviation, uint64(sample/2))
 	} else {
-		r.meanDeviation = time.Duration(oneMinusBeta*float32(r.meanDeviation/time.Microsecond)+rttBeta*float32(utils.AbsDuration(r.smoothedRTT-sample)/time.Microsecond)) * time.Microsecond
-		r.smoothedRTT = time.Duration((float32(r.smoothedRTT/time.Microsecond)*oneMinusAlpha)+(float32(sample/time.Microsecond)*rttAlpha)) * time.Microsecond
+		meanDeviation := time.Duration(atomic.LoadUint64(&r.meanDeviation))
+		atomic.StoreUint64(&r.meanDeviation, uint64(time.Duration(oneMinusBeta*float32(meanDeviation/time.Microsecond)+rttBeta*float32(utils.AbsDuration(smoothedRTT-sample)/time.Microsecond))*time.Microsecond))
+		atomic.StoreUint64(&r.smoothedRTT, uint64(time.Duration((float32(smoothedRTT/time.Microsecond)*oneMinusAlpha)+(float32(sample/time.Microsecond)*rttAlpha))*time.Microsecond))
 	}
 }
 
 // OnConnectionMigration is called when connection migrates and rtt measurement needs to be reset.
 func (r *RTTStats) OnConnectionMigration() {
-	r.latestRTT = 0
-	r.minRTT = 0
-	r.smoothedRTT = 0
-	r.meanDeviation = 0
+	atomic.StoreUint64(&r.latestRTT, 0)
+	atomic.StoreUint64(&r.minRTT, 0)
+	atomic.StoreUint64(&r.smoothedRTT, 0)
+	atomic.StoreUint64(&r.meanDeviation, 0)
 }
 
 // ExpireSmoothedMetrics causes the smoothed_rtt to be increased to the latest_rtt if the latest_rtt
 // is larger. The mean deviation is increased to the most recent deviation if
 // it's larger.
 func (r *RTTStats) ExpireSmoothedMetrics() {
-	r.meanDeviation = utils.MaxDuration(r.meanDeviation, utils.AbsDuration(r.smoothedRTT-r.latestRTT))
-	r.smoothedRTT = utils.MaxDuration(r.smoothedRTT, r.latestRTT)
+	meanDeviation := time.Duration(atomic.LoadUint64(&r.meanDeviation))
+	smoothedRTT := time.Duration(atomic.LoadUint64(&r.smoothedRTT))
+	latestRTT := time.Duration(atomic.LoadUint64(&r.latestRTT))
+	atomic.StoreUint64(&r.meanDeviation, uint64(utils.MaxDuration(meanDeviation, utils.AbsDuration(smoothedRTT-latestRTT))))
+	atomic.StoreUint64(&r.smoothedRTT, uint64(utils.MaxDuration(smoothedRTT, latestRTT)))
 }
