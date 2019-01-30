@@ -9,6 +9,7 @@ import (
 	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	congestion "github.com/lucas-clemente/quic-go/internal/congestion"
 	protocol "github.com/lucas-clemente/quic-go/internal/protocol"
 )
 
@@ -120,6 +121,26 @@ func (mr *MockSendAlgorithmMockRecorder) SetNumEmulatedConnections(arg0 interfac
 // SetSlowStartLargeReduction mocks base method
 func (m *MockSendAlgorithm) SetSlowStartLargeReduction(arg0 bool) {
 	m.ctrl.Call(m, "SetSlowStartLargeReduction", arg0)
+}
+
+func (m *MockSendAlgorithm) BandwidthEstimate() congestion.Bandwidth {
+	panic("not implemented")
+}
+
+func (m *MockSendAlgorithm) HybridSlowStart() *congestion.HybridSlowStart {
+	panic("not implemented")
+}
+
+func (m *MockSendAlgorithm) SlowstartThreshold() protocol.ByteCount {
+	panic("not implemented")
+}
+
+func (m *MockSendAlgorithm) InRecovery() bool {
+	panic("not implemented")
+}
+
+func (m *MockSendAlgorithm) RenoBeta() float32 {
+	panic("not implemented")
 }
 
 // SetSlowStartLargeReduction indicates an expected call of SetSlowStartLargeReduction

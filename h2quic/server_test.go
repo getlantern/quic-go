@@ -86,6 +86,7 @@ func (s *mockSession) ConnectionState() quic.ConnectionState        { panic("not
 func (s *mockSession) AcceptUniStream() (quic.ReceiveStream, error) { panic("not implemented") }
 func (s *mockSession) OpenUniStream() (quic.SendStream, error)      { panic("not implemented") }
 func (s *mockSession) OpenUniStreamSync() (quic.SendStream, error)  { panic("not implemented") }
+func (s *mockSession) BandwidthEstimate() quic.Bandwidth            { panic("not implemented") }
 
 var _ = Describe("H2 server", func() {
 	var (
