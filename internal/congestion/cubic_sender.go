@@ -15,6 +15,9 @@ const (
 )
 
 type cubicSender struct {
+	// Congestion window in packets.
+	congestionWindow uint64 // protocol.ByteCount
+
 	hybridSlowStart HybridSlowStart
 	prr             PrrSender
 	rttStats        *RTTStats
@@ -38,9 +41,6 @@ type cubicSender struct {
 
 	// When true, exit slow start with large cutback of congestion window.
 	slowStartLargeReduction bool
-
-	// Congestion window in packets.
-	congestionWindow uint64 // protocol.ByteCount
 
 	// Minimum congestion window in packets.
 	minCongestionWindow protocol.ByteCount
