@@ -1,6 +1,7 @@
 package congestion
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/lucas-clemente/quic-go/internal/protocol"
@@ -39,7 +40,7 @@ type cubicSender struct {
 	slowStartLargeReduction bool
 
 	// Congestion window in packets.
-	congestionWindow protocol.ByteCount
+	congestionWindow uint64 // protocol.ByteCount
 
 	// Minimum congestion window in packets.
 	minCongestionWindow protocol.ByteCount
@@ -71,7 +72,7 @@ func NewCubicSender(clock Clock, rttStats *RTTStats, reno bool, initialCongestio
 		rttStats:                   rttStats,
 		initialCongestionWindow:    initialCongestionWindow,
 		initialMaxCongestionWindow: initialMaxCongestionWindow,
-		congestionWindow:           initialCongestionWindow,
+		congestionWindow:           uint64(initialCongestionWindow),
 		minCongestionWindow:        defaultMinimumCongestionWindow,
 		slowstartThreshold:         initialMaxCongestionWindow,
 		maxCongestionWindow:        initialMaxCongestionWindow,
@@ -123,7 +124,7 @@ func (c *cubicSender) InSlowStart() bool {
 }
 
 func (c *cubicSender) GetCongestionWindow() protocol.ByteCount {
-	return c.congestionWindow
+	return protocol.ByteCount(atomic.LoadUint64(&c.congestionWindow))
 }
 
 func (c *cubicSender) GetSlowStartThreshold() protocol.ByteCount {
@@ -131,7 +132,7 @@ func (c *cubicSender) GetSlowStartThreshold() protocol.ByteCount {
 }
 
 func (c *cubicSender) ExitSlowstart() {
-	c.slowstartThreshold = c.congestionWindow
+	c.slowstartThreshold = c.GetCongestionWindow()
 }
 
 func (c *cubicSender) SlowstartThreshold() protocol.ByteCount {
@@ -175,8 +176,10 @@ func (c *cubicSender) OnPacketLost(
 			c.stats.slowstartBytesLost += lostBytes
 			if c.slowStartLargeReduction {
 				// Reduce congestion window by lost_bytes for every loss.
-				c.congestionWindow = utils.MaxByteCount(c.congestionWindow-lostBytes, c.minSlowStartExitWindow)
-				c.slowstartThreshold = c.congestionWindow
+				congestionWindow := c.GetCongestionWindow()
+				congestionWindow = utils.MaxByteCount(congestionWindow-lostBytes, c.minSlowStartExitWindow)
+				atomic.StoreUint64(&c.congestionWindow, uint64(congestionWindow))
+				c.slowstartThreshold = congestionWindow
 			}
 		}
 		return
@@ -189,20 +192,22 @@ func (c *cubicSender) OnPacketLost(
 	c.prr.OnPacketLost(priorInFlight)
 
 	// TODO(chromium): Separate out all of slow start into a separate class.
+	congestionWindow := c.GetCongestionWindow()
 	if c.slowStartLargeReduction && c.InSlowStart() {
-		if c.congestionWindow >= 2*c.initialCongestionWindow {
-			c.minSlowStartExitWindow = c.congestionWindow / 2
+		if congestionWindow >= 2*c.initialCongestionWindow {
+			c.minSlowStartExitWindow = congestionWindow / 2
 		}
-		c.congestionWindow -= protocol.DefaultTCPMSS
+		congestionWindow -= protocol.DefaultTCPMSS
 	} else if c.reno {
-		c.congestionWindow = protocol.ByteCount(float32(c.congestionWindow) * c.RenoBeta())
+		congestionWindow = protocol.ByteCount(float32(congestionWindow) * c.RenoBeta())
 	} else {
-		c.congestionWindow = c.cubic.CongestionWindowAfterPacketLoss(c.congestionWindow)
+		congestionWindow = c.cubic.CongestionWindowAfterPacketLoss(congestionWindow)
 	}
-	if c.congestionWindow < c.minCongestionWindow {
-		c.congestionWindow = c.minCongestionWindow
+	if congestionWindow < c.minCongestionWindow {
+		congestionWindow = c.minCongestionWindow
 	}
-	c.slowstartThreshold = c.congestionWindow
+	atomic.StoreUint64(&c.congestionWindow, uint64(congestionWindow))
+	c.slowstartThreshold = congestionWindow
 	c.largestSentAtLastCutback = c.largestSentPacketNumber
 	// reset packet count from congestion avoidance mode. We start
 	// counting again when we're out of recovery.
@@ -231,12 +236,13 @@ func (c *cubicSender) maybeIncreaseCwnd(
 		c.cubic.OnApplicationLimited()
 		return
 	}
-	if c.congestionWindow >= c.maxCongestionWindow {
+	congestionWindow := c.GetCongestionWindow()
+	if congestionWindow >= c.maxCongestionWindow {
 		return
 	}
 	if c.InSlowStart() {
 		// TCP slow start, exponential growth, increase by one for each ACK.
-		c.congestionWindow += protocol.DefaultTCPMSS
+		atomic.StoreUint64(&c.congestionWindow, uint64(congestionWindow+protocol.DefaultTCPMSS))
 		return
 	}
 	// Congestion avoidance
@@ -246,11 +252,11 @@ func (c *cubicSender) maybeIncreaseCwnd(
 		// Divide by num_connections to smoothly increase the CWND at a faster
 		// rate than conventional Reno.
 		if c.numAckedPackets*uint64(c.numConnections) >= uint64(c.congestionWindow)/uint64(protocol.DefaultTCPMSS) {
-			c.congestionWindow += protocol.DefaultTCPMSS
+			atomic.StoreUint64(&c.congestionWindow, uint64(congestionWindow+protocol.DefaultTCPMSS))
 			c.numAckedPackets = 0
 		}
 	} else {
-		c.congestionWindow = utils.MinByteCount(c.maxCongestionWindow, c.cubic.CongestionWindowAfterAck(ackedBytes, c.congestionWindow, c.rttStats.MinRTT(), eventTime))
+		atomic.StoreUint64(&c.congestionWindow, uint64(utils.MinByteCount(c.maxCongestionWindow, c.cubic.CongestionWindowAfterAck(ackedBytes, congestionWindow, c.rttStats.MinRTT(), eventTime))))
 	}
 }
 
@@ -293,8 +299,8 @@ func (c *cubicSender) OnRetransmissionTimeout(packetsRetransmitted bool) {
 	}
 	c.hybridSlowStart.Restart()
 	c.cubic.Reset()
-	c.slowstartThreshold = c.congestionWindow / 2
-	c.congestionWindow = c.minCongestionWindow
+	c.slowstartThreshold = c.GetCongestionWindow() / 2
+	atomic.StoreUint64(&c.congestionWindow, uint64(c.minCongestionWindow))
 }
 
 // OnConnectionMigration is called when the connection is migrated (?)
@@ -307,7 +313,7 @@ func (c *cubicSender) OnConnectionMigration() {
 	c.lastCutbackExitedSlowstart = false
 	c.cubic.Reset()
 	c.numAckedPackets = 0
-	c.congestionWindow = c.initialCongestionWindow
+	atomic.StoreUint64(&c.congestionWindow, uint64(c.initialCongestionWindow))
 	c.slowstartThreshold = c.initialMaxCongestionWindow
 	c.maxCongestionWindow = c.initialMaxCongestionWindow
 }
