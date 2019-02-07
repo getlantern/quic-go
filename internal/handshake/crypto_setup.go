@@ -60,7 +60,9 @@ type cryptoSetup struct {
 	readEncLevel  protocol.EncryptionLevel
 	writeEncLevel protocol.EncryptionLevel
 
-	handleParamsCallback func(*TransportParameters)
+	extHandler tlsExtensionHandler
+
+	handleParamsCallback func([]byte)
 
 	// There are two ways that an error can occur during the handshake:
 	// 1. as a return value from qtls.Handshake()
@@ -71,8 +73,6 @@ type cryptoSetup struct {
 	messageErrChan chan error
 	// handshakeDone is closed as soon as the go routine running qtls.Handshake() returns
 	handshakeDone chan struct{}
-	// transport parameters are sent on the receivedTransportParams, as soon as they are received
-	receivedTransportParams <-chan TransportParameters
 	// is closed when Close() is called
 	closeChan chan struct{}
 
@@ -87,8 +87,9 @@ type cryptoSetup struct {
 	handshakeOpener Opener
 	handshakeSealer Sealer
 
-	opener Opener
-	sealer Sealer
+	oneRTTStream io.Writer
+	opener       Opener
+	sealer       Sealer
 	// TODO: add a 1-RTT stream (used for session tickets)
 
 	receivedWriteKey chan struct{}
@@ -106,35 +107,23 @@ var _ CryptoSetup = &cryptoSetup{}
 func NewCryptoSetupClient(
 	initialStream io.Writer,
 	handshakeStream io.Writer,
-	origConnID protocol.ConnectionID,
+	oneRTTStream io.Writer,
 	connID protocol.ConnectionID,
-	params *TransportParameters,
-	handleParams func(*TransportParameters),
+	chtp *ClientHelloTransportParameters,
+	handleParams func([]byte),
 	tlsConf *tls.Config,
-	initialVersion protocol.VersionNumber,
-	supportedVersions []protocol.VersionNumber,
-	currentVersion protocol.VersionNumber,
 	logger utils.Logger,
-	perspective protocol.Perspective,
 ) (CryptoSetup, <-chan struct{} /* ClientHello written */, error) {
-	extHandler, receivedTransportParams := newExtensionHandlerClient(
-		params,
-		origConnID,
-		initialVersion,
-		supportedVersions,
-		currentVersion,
-		logger,
-	)
 	cs, clientHelloWritten, err := newCryptoSetup(
 		initialStream,
 		handshakeStream,
+		oneRTTStream,
 		connID,
-		extHandler,
-		receivedTransportParams,
+		chtp.Marshal(),
 		handleParams,
 		tlsConf,
 		logger,
-		perspective,
+		protocol.PerspectiveClient,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -147,31 +136,23 @@ func NewCryptoSetupClient(
 func NewCryptoSetupServer(
 	initialStream io.Writer,
 	handshakeStream io.Writer,
+	oneRTTStream io.Writer,
 	connID protocol.ConnectionID,
-	params *TransportParameters,
-	handleParams func(*TransportParameters),
+	eetp *EncryptedExtensionsTransportParameters,
+	handleParams func([]byte),
 	tlsConf *tls.Config,
-	supportedVersions []protocol.VersionNumber,
-	currentVersion protocol.VersionNumber,
 	logger utils.Logger,
-	perspective protocol.Perspective,
 ) (CryptoSetup, error) {
-	extHandler, receivedTransportParams := newExtensionHandlerServer(
-		params,
-		supportedVersions,
-		currentVersion,
-		logger,
-	)
 	cs, _, err := newCryptoSetup(
 		initialStream,
 		handshakeStream,
+		oneRTTStream,
 		connID,
-		extHandler,
-		receivedTransportParams,
+		eetp.Marshal(),
 		handleParams,
 		tlsConf,
 		logger,
-		perspective,
+		protocol.PerspectiveServer,
 	)
 	if err != nil {
 		return nil, err
@@ -183,10 +164,10 @@ func NewCryptoSetupServer(
 func newCryptoSetup(
 	initialStream io.Writer,
 	handshakeStream io.Writer,
+	oneRTTStream io.Writer,
 	connID protocol.ConnectionID,
-	extHandler tlsExtensionHandler,
-	transportParamChan <-chan TransportParameters,
-	handleParams func(*TransportParameters),
+	paramBytes []byte, // the marshaled transport parameters
+	handleParams func([]byte),
 	tlsConf *tls.Config,
 	logger utils.Logger,
 	perspective protocol.Perspective,
@@ -195,25 +176,27 @@ func newCryptoSetup(
 	if err != nil {
 		return nil, nil, err
 	}
+	extHandler := newExtensionHandler(paramBytes, perspective)
 	cs := &cryptoSetup{
-		initialStream:           initialStream,
-		initialSealer:           initialSealer,
-		initialOpener:           initialOpener,
-		handshakeStream:         handshakeStream,
-		readEncLevel:            protocol.EncryptionInitial,
-		writeEncLevel:           protocol.EncryptionInitial,
-		handleParamsCallback:    handleParams,
-		receivedTransportParams: transportParamChan,
-		logger:                  logger,
-		perspective:             perspective,
-		handshakeDone:           make(chan struct{}),
-		handshakeErrChan:        make(chan struct{}),
-		messageErrChan:          make(chan error, 1),
-		clientHelloWrittenChan:  make(chan struct{}),
-		messageChan:             make(chan []byte, 100),
-		receivedReadKey:         make(chan struct{}),
-		receivedWriteKey:        make(chan struct{}),
-		closeChan:               make(chan struct{}),
+		initialStream:          initialStream,
+		initialSealer:          initialSealer,
+		initialOpener:          initialOpener,
+		handshakeStream:        handshakeStream,
+		oneRTTStream:           oneRTTStream,
+		readEncLevel:           protocol.EncryptionInitial,
+		writeEncLevel:          protocol.EncryptionInitial,
+		handleParamsCallback:   handleParams,
+		extHandler:             extHandler,
+		logger:                 logger,
+		perspective:            perspective,
+		handshakeDone:          make(chan struct{}),
+		handshakeErrChan:       make(chan struct{}),
+		messageErrChan:         make(chan error, 1),
+		clientHelloWrittenChan: make(chan struct{}),
+		messageChan:            make(chan []byte, 100),
+		receivedReadKey:        make(chan struct{}),
+		receivedWriteKey:       make(chan struct{}),
+		closeChan:              make(chan struct{}),
 	}
 	qtlsConf := tlsConfigToQtlsConfig(tlsConf)
 	qtlsConf.AlternativeRecordLayer = cs
@@ -221,6 +204,16 @@ func newCryptoSetup(
 	qtlsConf.ReceivedExtensions = extHandler.ReceivedExtensions
 	cs.tlsConf = qtlsConf
 	return cs, cs.clientHelloWrittenChan, nil
+}
+
+func (h *cryptoSetup) ChangeConnectionID(id protocol.ConnectionID) error {
+	initialSealer, initialOpener, err := NewInitialAEAD(id, h.perspective)
+	if err != nil {
+		return err
+	}
+	h.initialSealer = initialSealer
+	h.initialOpener = initialOpener
+	return nil
 }
 
 func (h *cryptoSetup) RunHandshake() error {
@@ -312,8 +305,8 @@ func (h *cryptoSetup) handleMessageForServer(msgType messageType) bool {
 	switch msgType {
 	case typeClientHello:
 		select {
-		case params := <-h.receivedTransportParams:
-			h.handleParamsCallback(&params)
+		case data := <-h.extHandler.TransportParameters():
+			h.handleParamsCallback(data)
 		case <-h.handshakeErrChan:
 			return false
 		}
@@ -370,8 +363,8 @@ func (h *cryptoSetup) handleMessageForClient(msgType messageType) bool {
 		return true
 	case typeEncryptedExtensions:
 		select {
-		case params := <-h.receivedTransportParams:
-			h.handleParamsCallback(&params)
+		case data := <-h.extHandler.TransportParameters():
+			h.handleParamsCallback(data)
 		case <-h.handshakeErrChan:
 			return false
 		}
@@ -472,8 +465,10 @@ func (h *cryptoSetup) WriteRecord(p []byte) (int, error) {
 		return n, err
 	case protocol.EncryptionHandshake:
 		return h.handshakeStream.Write(p)
+	case protocol.Encryption1RTT:
+		return h.oneRTTStream.Write(p)
 	default:
-		return 0, fmt.Errorf("unexpected write encryption level: %s", h.writeEncLevel)
+		panic(fmt.Sprintf("unexpected write encryption level: %s", h.writeEncLevel))
 	}
 }
 
