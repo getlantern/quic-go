@@ -1,4 +1,4 @@
-module github.com/lucas-clemente/quic-go
+module github.com/getlantern/quic-go
 
 go 1.12
 
