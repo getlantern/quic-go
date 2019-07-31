@@ -42,6 +42,9 @@ func (m *MockConnection) Close() error {
 	return ret0
 }
 
+// EnvelopeSize mocks base method
+func (m *MockConnection) EnvelopeSize() uint64 { return 0 }
+
 // Close indicates an expected call of Close
 func (mr *MockConnectionMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()

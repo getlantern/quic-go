@@ -92,18 +92,19 @@ func (p *packedPacket) ToAckHandlerPacket(q *retransmissionQueue) *ackhandler.Pa
 	}
 }
 
-func getMaxPacketSize(addr net.Addr) protocol.ByteCount {
+func getMaxPacketSize(addr net.Addr, reserveBytes protocol.ByteCount) protocol.ByteCount {
 	maxSize := protocol.ByteCount(protocol.MinInitialPacketSize)
 	// If this is not a UDP address, we don't know anything about the MTU.
 	// Use the minimum size of an Initial packet as the max packet size.
+	// ignore reserveBytes in this case.
 	if udpAddr, ok := addr.(*net.UDPAddr); ok {
 		// If ip is not an IPv4 address, To4 returns nil.
 		// Note that there might be some corner cases, where this is not correct.
 		// See https://stackoverflow.com/questions/22751035/golang-distinguish-ipv4-ipv6.
 		if udpAddr.IP.To4() == nil {
-			maxSize = protocol.MaxPacketSizeIPv6
+			maxSize = protocol.MaxPacketSizeIPv6 - reserveBytes
 		} else {
-			maxSize = protocol.MaxPacketSizeIPv4
+			maxSize = protocol.MaxPacketSizeIPv4 - reserveBytes
 		}
 	}
 	return maxSize
@@ -171,6 +172,7 @@ func newPacketPacker(
 	acks ackFrameSource,
 	perspective protocol.Perspective,
 	version protocol.VersionNumber,
+	reserveBytes protocol.ByteCount,
 ) *packetPacker {
 	return &packetPacker{
 		cryptoSetup:         cryptoSetup,
@@ -184,7 +186,7 @@ func newPacketPacker(
 		framer:              framer,
 		acks:                acks,
 		pnManager:           packetNumberManager,
-		maxPacketSize:       getMaxPacketSize(remoteAddr),
+		maxPacketSize:       getMaxPacketSize(remoteAddr, reserveBytes),
 	}
 }
 
