@@ -89,3 +89,17 @@ func (mr *MockSendConnMockRecorder) Write(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockSendConn)(nil).Write), arg0)
 }
+
+// EnvelopeSize mocks base method
+func (m *MockSendConn) EnvelopeSize() uint64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnvelopeSize")
+	ret0, _ := ret[0].(uint64)
+	return ret0
+}
+
+// EnvelopeSize indicates an expected call of EnvelopeSize
+func (mr *MockSendConnMockRecorder) EnvelopeSize() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnvelopeSize", reflect.TypeOf((*MockSendConn)(nil).EnvelopeSize))
+}
