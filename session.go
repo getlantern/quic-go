@@ -211,6 +211,7 @@ var newSession = func(
 		s.receivedPacketHandler,
 		s.perspective,
 		s.version,
+		protocol.ByteCount(s.conn.EnvelopeSize()),
 	)
 	s.cryptoStreamManager = newCryptoStreamManager(cs, initialStream, handshakeStream)
 
@@ -294,6 +295,7 @@ var newClientSession = func(
 		s.receivedPacketHandler,
 		s.perspective,
 		s.version,
+		protocol.ByteCount(s.conn.EnvelopeSize()),
 	)
 	return s, s.postSetup()
 }
