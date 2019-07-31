@@ -86,6 +86,7 @@ var _ = Describe("Session", func() {
 		mconn = NewMockSendConn(mockCtrl)
 		mconn.EXPECT().RemoteAddr().Return(remoteAddr).AnyTimes()
 		mconn.EXPECT().LocalAddr().Return(localAddr).AnyTimes()
+		mconn.EXPECT().EnvelopeSize().Return(uint64(0)).AnyTimes()
 		tokenGenerator, err := handshake.NewTokenGenerator()
 		Expect(err).ToNot(HaveOccurred())
 		tracer = mocks.NewMockConnectionTracer(mockCtrl)
@@ -2143,6 +2144,7 @@ var _ = Describe("Client Session", func() {
 		mconn = NewMockSendConn(mockCtrl)
 		mconn.EXPECT().RemoteAddr().Return(&net.UDPAddr{}).Times(2)
 		mconn.EXPECT().LocalAddr().Return(&net.UDPAddr{})
+		mconn.EXPECT().EnvelopeSize().Return(uint64(0)).AnyTimes()
 		if tlsConf == nil {
 			mconn.EXPECT().RemoteAddr().Return(&net.UDPAddr{})
 			tlsConf = &tls.Config{}
