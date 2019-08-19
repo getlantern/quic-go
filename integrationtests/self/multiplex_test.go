@@ -48,7 +48,7 @@ var _ = Describe("Multiplexing", func() {
 					conn,
 					addr,
 					fmt.Sprintf("localhost:%d", addr.(*net.UDPAddr).Port),
-					&tls.Config{RootCAs: testdata.GetRootCA()},
+					&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 					&quic.Config{Versions: []protocol.VersionNumber{version}},
 				)
 				Expect(err).ToNot(HaveOccurred())

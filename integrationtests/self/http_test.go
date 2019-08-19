@@ -41,6 +41,7 @@ var _ = Describe("HTTP tests", func() {
 					Transport: &h2quic.RoundTripper{
 						TLSClientConfig: &tls.Config{
 							RootCAs: testdata.GetRootCA(),
+							ServerName: "localhost",
 						},
 						QuicConfig: &quic.Config{
 							Versions:    []protocol.VersionNumber{version},

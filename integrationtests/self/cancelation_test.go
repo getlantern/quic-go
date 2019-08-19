@@ -65,7 +65,7 @@ var _ = Describe("Stream Cancelations", func() {
 			serverCanceledCounterChan := runServer()
 			sess, err := quic.DialAddr(
 				fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-				&tls.Config{RootCAs: testdata.GetRootCA()},
+				&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 				&quic.Config{MaxIncomingUniStreams: numStreams / 2},
 			)
 			Expect(err).ToNot(HaveOccurred())
@@ -109,7 +109,7 @@ var _ = Describe("Stream Cancelations", func() {
 
 			sess, err := quic.DialAddr(
 				fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-				&tls.Config{RootCAs: testdata.GetRootCA()},
+				&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 				&quic.Config{MaxIncomingUniStreams: numStreams / 2},
 			)
 			Expect(err).ToNot(HaveOccurred())
@@ -157,7 +157,7 @@ var _ = Describe("Stream Cancelations", func() {
 		runClient := func(server quic.Listener) int32 /* number of canceled streams */ {
 			sess, err := quic.DialAddr(
 				fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-				&tls.Config{RootCAs: testdata.GetRootCA()},
+				&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 				&quic.Config{MaxIncomingUniStreams: numStreams / 2},
 			)
 			Expect(err).ToNot(HaveOccurred())
@@ -293,7 +293,7 @@ var _ = Describe("Stream Cancelations", func() {
 
 			sess, err := quic.DialAddr(
 				fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-				&tls.Config{RootCAs: testdata.GetRootCA()},
+				&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 				&quic.Config{MaxIncomingUniStreams: numStreams / 2},
 			)
 			Expect(err).ToNot(HaveOccurred())
@@ -371,7 +371,7 @@ var _ = Describe("Stream Cancelations", func() {
 
 			sess, err := quic.DialAddr(
 				fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-				&tls.Config{RootCAs: testdata.GetRootCA()},
+				&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 				&quic.Config{MaxIncomingUniStreams: numStreams / 2},
 			)
 			Expect(err).ToNot(HaveOccurred())

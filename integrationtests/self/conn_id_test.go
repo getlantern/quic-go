@@ -48,7 +48,7 @@ var _ = Describe("Connection ID lengths tests", func() {
 		GinkgoWriter.Write([]byte(fmt.Sprintf("Using %d byte connection ID for the client\n", conf.ConnectionIDLength)))
 		cl, err := quic.DialAddr(
 			fmt.Sprintf("localhost:%d", addr.(*net.UDPAddr).Port),
-			&tls.Config{RootCAs: testdata.GetRootCA()},
+			&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 			conf,
 		)
 		Expect(err).ToNot(HaveOccurred())

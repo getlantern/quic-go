@@ -106,7 +106,7 @@ var _ = Describe("Drop Tests", func() {
 
 						sess, err := quic.DialAddr(
 							fmt.Sprintf("localhost:%d", proxy.LocalPort()),
-							&tls.Config{RootCAs: testdata.GetRootCA()},
+							&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 							&quic.Config{Versions: []protocol.VersionNumber{version}},
 						)
 						Expect(err).ToNot(HaveOccurred())

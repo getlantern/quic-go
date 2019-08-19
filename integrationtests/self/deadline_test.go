@@ -40,7 +40,7 @@ var _ = Describe("Stream deadline tests", func() {
 
 		sess, err := quic.DialAddr(
 			fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-			&tls.Config{RootCAs: testdata.GetRootCA()},
+			&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 			nil,
 		)
 		Expect(err).ToNot(HaveOccurred())
