@@ -108,7 +108,7 @@ var _ = Describe("Handshake tests", func() {
 
 				BeforeEach(func() {
 					serverConfig.Versions = []protocol.VersionNumber{version}
-					tlsConf = &tls.Config{RootCAs: testdata.GetRootCA()}
+					tlsConf = &tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"}
 					clientConfig = &quic.Config{
 						Versions: []protocol.VersionNumber{version},
 					}
@@ -128,7 +128,7 @@ var _ = Describe("Handshake tests", func() {
 					runServer()
 					_, err := quic.DialAddr(
 						fmt.Sprintf("127.0.0.1:%d", server.Addr().(*net.UDPAddr).Port),
-						tlsConf,
+						&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "127.0.0.1"},
 						clientConfig,
 					)
 					Expect(err).To(HaveOccurred())
@@ -154,7 +154,7 @@ var _ = Describe("Handshake tests", func() {
 		dial := func() (quic.Session, error) {
 			return quic.DialAddr(
 				fmt.Sprintf("localhost:%d", server.Addr().(*net.UDPAddr).Port),
-				&tls.Config{RootCAs: testdata.GetRootCA()},
+				&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 				nil,
 			)
 		}

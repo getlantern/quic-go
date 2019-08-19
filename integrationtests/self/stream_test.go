@@ -101,7 +101,7 @@ var _ = Describe("Bidirectional streams", func() {
 
 				client, err := quic.DialAddr(
 					serverAddr,
-					&tls.Config{RootCAs: testdata.GetRootCA()},
+					&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 					qconf,
 				)
 				Expect(err).ToNot(HaveOccurred())
@@ -119,7 +119,7 @@ var _ = Describe("Bidirectional streams", func() {
 
 				client, err := quic.DialAddr(
 					serverAddr,
-					&tls.Config{RootCAs: testdata.GetRootCA()},
+					&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 					qconf,
 				)
 				Expect(err).ToNot(HaveOccurred())
@@ -146,7 +146,7 @@ var _ = Describe("Bidirectional streams", func() {
 
 				client, err := quic.DialAddr(
 					serverAddr,
-					&tls.Config{RootCAs: testdata.GetRootCA()},
+					&tls.Config{RootCAs: testdata.GetRootCA(), ServerName: "localhost"},
 					qconf,
 				)
 				Expect(err).ToNot(HaveOccurred())

@@ -54,7 +54,7 @@ func (m *mockConnection) SetCurrentRemoteAddr(addr net.Addr) {
 func (m *mockConnection) LocalAddr() net.Addr  { return m.localAddr }
 func (m *mockConnection) RemoteAddr() net.Addr { return m.remoteAddr }
 func (*mockConnection) Close() error           { panic("not implemented") }
-
+func (*mockConnection) EnvelopeSize() uint64   { return 0 }
 func areSessionsRunning() bool {
 	var b bytes.Buffer
 	pprof.Lookup("goroutine").WriteTo(&b, 1)
