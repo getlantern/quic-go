@@ -145,11 +145,12 @@ func (h *packetHandlerMap) close(e error) error {
 			wg.Done()
 		}(handlerEntry)
 	}
-
+	h.mutex.Unlock()
 	if h.server != nil {
+		// this calls back into CloseServer which also wants to
+		// acquire h.mutex...
 		h.server.closeWithError(e)
 	}
-	h.mutex.Unlock()
 	wg.Wait()
 	return getMultiplexer().RemoveConn(h.conn)
 }
