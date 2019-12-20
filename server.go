@@ -29,7 +29,6 @@ type packetHandler interface {
 type unknownPacketHandler interface {
 	handlePacket(*receivedPacket)
 	closeWithError(error) error
-	closeWithErrorWithMutex(error) error
 }
 
 type packetHandlerManager interface {
@@ -312,10 +311,6 @@ func (s *server) closeWithMutex() error {
 func (s *server) closeWithError(e error) error {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	return s.closeWithErrorWithMutex(e)
-}
-
-func (s *server) closeWithErrorWithMutex(e error) error {
 	if s.closed {
 		return nil
 	}
