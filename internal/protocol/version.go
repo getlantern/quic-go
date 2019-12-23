@@ -18,7 +18,10 @@ const (
 
 // The version numbers, making grepping easier
 const (
-	VersionTLS      VersionNumber = 0x51474fff
+	// this announces the QUIC version being negotated as "ietf draft 24"
+	// despite the name (historical leftover), this is not related to the
+	// version of the TLS protocol used.
+	VersionTLS      VersionNumber = 0xff000018
 	VersionWhatever VersionNumber = 1 // for when the version doesn't matter
 	VersionUnknown  VersionNumber = math.MaxUint32
 )
