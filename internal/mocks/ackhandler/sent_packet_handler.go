@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	ackhandler "github.com/lucas-clemente/quic-go/internal/ackhandler"
+	congestion "github.com/lucas-clemente/quic-go/internal/congestion"
 	protocol "github.com/lucas-clemente/quic-go/internal/protocol"
 	wire "github.com/lucas-clemente/quic-go/internal/wire"
 	quictrace "github.com/lucas-clemente/quic-go/quictrace"
@@ -48,6 +49,20 @@ func (m *MockSentPacketHandler) DropPackets(arg0 protocol.EncryptionLevel) {
 func (mr *MockSentPacketHandlerMockRecorder) DropPackets(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DropPackets", reflect.TypeOf((*MockSentPacketHandler)(nil).DropPackets), arg0)
+}
+
+// GetBandwidthEstimate mocks base method
+func (m *MockSentPacketHandler) GetBandwidthEstimate() congestion.Bandwidth {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBandwidthEstimate")
+	ret0, _ := ret[0].(congestion.Bandwidth)
+	return ret0
+}
+
+// GetBandwidthEstimate indicates an expected call of GetBandwidthEstimate
+func (mr *MockSentPacketHandlerMockRecorder) GetBandwidthEstimate() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBandwidthEstimate", reflect.TypeOf((*MockSentPacketHandler)(nil).GetBandwidthEstimate))
 }
 
 // GetLossDetectionTimeout mocks base method

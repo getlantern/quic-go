@@ -107,7 +107,8 @@ var _ = Describe("HTTP tests", func() {
 				client = &http.Client{
 					Transport: &http3.RoundTripper{
 						TLSClientConfig: &tls.Config{
-							RootCAs: testdata.GetRootCA(),
+							RootCAs:    testdata.GetRootCA(),
+							ServerName: "localhost",
 						},
 						DisableCompression: true,
 						QuicConfig: &quic.Config{

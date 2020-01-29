@@ -293,6 +293,7 @@ var newSession = func(
 		s.receivedPacketHandler,
 		s.perspective,
 		s.version,
+		protocol.ByteCount(s.conn.EnvelopeSize()),
 	)
 	s.unpacker = newPacketUnpacker(cs, s.version)
 	s.cryptoStreamManager = newCryptoStreamManager(cs, initialStream, handshakeStream, oneRTTStream)
@@ -394,6 +395,7 @@ var newClientSession = func(
 		s.receivedPacketHandler,
 		s.perspective,
 		s.version,
+		protocol.ByteCount(s.conn.EnvelopeSize()),
 	)
 	if len(tlsConf.ServerName) > 0 {
 		s.tokenStoreKey = tlsConf.ServerName
@@ -1466,4 +1468,8 @@ func (s *session) getPerspective() protocol.Perspective {
 
 func (s *session) GetVersion() protocol.VersionNumber {
 	return s.version
+}
+
+func (s *session) BandwidthEstimate() Bandwidth {
+	return s.sentPacketHandler.GetBandwidthEstimate()
 }

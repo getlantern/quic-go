@@ -213,6 +213,7 @@ var _ = Describe("Client", func() {
 				sess.EXPECT().run()
 				return sess
 			}
+			tlsConf.ServerName = "test.com"
 			_, err := Dial(
 				packetConn,
 				addr,
