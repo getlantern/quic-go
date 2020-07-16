@@ -7,6 +7,8 @@ import (
 	"github.com/lucas-clemente/quic-go/internal/wire"
 )
 
+type ConnectionID = protocol.ConnectionID
+
 // A Tracer traces a QUIC connection
 type Tracer interface {
 	Trace(protocol.ConnectionID, Event)
