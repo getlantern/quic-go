@@ -17,6 +17,7 @@ import (
 type roundTripCloser interface {
 	http.RoundTripper
 	io.Closer
+	RoundTripHijack(req *http.Request) (*http.Response, quic.Stream, quic.Session, error)
 }
 
 // RoundTripper implements the http.RoundTripper interface
@@ -70,46 +71,55 @@ var ErrNoCachedConn = errors.New("http3: no cached connection was available")
 
 // RoundTripOpt is like RoundTrip, but takes options.
 func (r *RoundTripper) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Response, error) {
+	res, _, _, err := r.RoundTripHijackOpt(req, opt)
+	return res, err
+}
+
+func (r *RoundTripper) RoundTripHijackOpt(req *http.Request, opt RoundTripOpt) (*http.Response, quic.Stream, quic.Session, error) {
 	if req.URL == nil {
 		closeRequestBody(req)
-		return nil, errors.New("http3: nil Request.URL")
+		return nil, nil, nil, errors.New("http3: nil Request.URL")
 	}
 	if req.URL.Host == "" {
 		closeRequestBody(req)
-		return nil, errors.New("http3: no Host in request URL")
+		return nil, nil, nil, errors.New("http3: no Host in request URL")
 	}
 	if req.Header == nil {
 		closeRequestBody(req)
-		return nil, errors.New("http3: nil Request.Header")
+		return nil, nil, nil, errors.New("http3: nil Request.Header")
 	}
 
 	if req.URL.Scheme == "https" {
 		for k, vv := range req.Header {
 			if !httpguts.ValidHeaderFieldName(k) {
-				return nil, fmt.Errorf("http3: invalid http header field name %q", k)
+				return nil, nil, nil, fmt.Errorf("http3: invalid http header field name %q", k)
 			}
 			for _, v := range vv {
 				if !httpguts.ValidHeaderFieldValue(v) {
-					return nil, fmt.Errorf("http3: invalid http header field value %q for key %v", v, k)
+					return nil, nil, nil, fmt.Errorf("http3: invalid http header field value %q for key %v", v, k)
 				}
 			}
 		}
 	} else {
 		closeRequestBody(req)
-		return nil, fmt.Errorf("http3: unsupported protocol scheme: %s", req.URL.Scheme)
+		return nil, nil, nil, fmt.Errorf("http3: unsupported protocol scheme: %s", req.URL.Scheme)
 	}
 
 	if req.Method != "" && !validMethod(req.Method) {
 		closeRequestBody(req)
-		return nil, fmt.Errorf("http3: invalid method %q", req.Method)
+		return nil, nil, nil, fmt.Errorf("http3: invalid method %q", req.Method)
 	}
 
 	hostname := authorityAddr("https", hostnameFromRequest(req))
 	cl, err := r.getClient(hostname, opt.OnlyCachedConn)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
-	return cl.RoundTrip(req)
+	return cl.RoundTripHijack(req)
+}
+
+func (r *RoundTripper) RoundTripHijack(req *http.Request) (*http.Response, quic.Stream, quic.Session, error) {
+	return r.RoundTripHijackOpt(req, RoundTripOpt{})
 }
 
 // RoundTrip does a round trip.
@@ -117,7 +127,7 @@ func (r *RoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return r.RoundTripOpt(req, RoundTripOpt{})
 }
 
-func (r *RoundTripper) getClient(hostname string, onlyCached bool) (http.RoundTripper, error) {
+func (r *RoundTripper) getClient(hostname string, onlyCached bool) (roundTripCloser, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 

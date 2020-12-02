@@ -142,11 +142,17 @@ func (c *client) maxHeaderBytes() uint64 {
 
 // RoundTrip executes a request and returns a response
 func (c *client) RoundTrip(req *http.Request) (*http.Response, error) {
+	res, _, _, err := c.RoundTripHijack(req)
+	return res, err
+}
+
+// RoundTripHijack executes a request and returns a response and the underlying quic.Stream
+func (c *client) RoundTripHijack(req *http.Request) (*http.Response, quic.Stream, quic.Session, error) {
 	if req.URL.Scheme != "https" {
-		return nil, errors.New("http3: unsupported scheme")
+		return nil, nil, nil, errors.New("http3: unsupported scheme")
 	}
 	if authorityAddr("https", hostnameFromRequest(req)) != c.hostname {
-		return nil, fmt.Errorf("http3 client BUG: RoundTrip called for the wrong client (expected %s, got %s)", c.hostname, req.Host)
+		return nil, nil, nil, fmt.Errorf("http3 client BUG: RoundTrip called for the wrong client (expected %s, got %s)", c.hostname, req.Host)
 	}
 
 	c.dialOnce.Do(func() {
@@ -154,7 +160,7 @@ func (c *client) RoundTrip(req *http.Request) (*http.Response, error) {
 	})
 
 	if c.handshakeErr != nil {
-		return nil, c.handshakeErr
+		return nil, nil, nil, c.handshakeErr
 	}
 
 	// Immediately send out this request, if this is a 0-RTT request.
@@ -165,13 +171,13 @@ func (c *client) RoundTrip(req *http.Request) (*http.Response, error) {
 		select {
 		case <-c.session.HandshakeComplete().Done():
 		case <-req.Context().Done():
-			return nil, req.Context().Err()
+			return nil, nil, nil, req.Context().Err()
 		}
 	}
 
 	str, err := c.session.OpenStreamSync(req.Context())
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 
 	// Request Cancellation:
@@ -201,7 +207,7 @@ func (c *client) RoundTrip(req *http.Request) (*http.Response, error) {
 			c.session.CloseWithError(quic.ErrorCode(rerr.connErr), reason)
 		}
 	}
-	return rsp, rerr.err
+	return rsp, str, c.session, rerr.err
 }
 
 func (c *client) doRequest(
