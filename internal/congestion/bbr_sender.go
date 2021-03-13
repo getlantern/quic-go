@@ -40,7 +40,6 @@ const (
 	bbrProbeRttTime                                = time.Millisecond * 200
 	bbrStartupGrowthTarget                         = 1.25
 	bbrRoundTripsWithoutGrowthBeforeExitingStartup = 3
-	bbrMinimumCongestionWindow                     = protocol.ByteCount(protocol.MaxPacketSizeIPv4 * 4)
 )
 
 var (
@@ -96,6 +95,7 @@ type bbrSender struct {
 	rttStats                     *utils.RTTStats
 	rttVarianceWeight            float64 // no internal writers, Good for tweaking perf though
 	probeRTTRoundPassed          bool
+	minCongestionWindow          protocol.ByteCount // Needs init
 	maxCongestionWindow          protocol.ByteCount // Needs init
 	pacer                        *pacer
 
@@ -103,7 +103,10 @@ type bbrSender struct {
 
 }
 
-func NewBBRSender(rs *utils.RTTStats) (b *bbrSender) {
+func NewBBRSender(rs *utils.RTTStats, initialMaxDatagramSize protocol.ByteCount) (b *bbrSender) {
+
+	bbrMinimumCongestionWindow := protocol.ByteCount(initialMaxDatagramSize * 4)
+
 	b = &bbrSender{
 		maxAckHeight: &windowFilter{
 			MaxOrMinFilter: false,
@@ -117,6 +120,7 @@ func NewBBRSender(rs *utils.RTTStats) (b *bbrSender) {
 		congestionWindow:             bbrMinimumCongestionWindow,
 		congestionWindowGain:         1,
 		initialCongestionWindow:      bbrMinimumCongestionWindow,
+		minCongestionWindow:          bbrMinimumCongestionWindow,
 		maxCongestionWindow:          5000 * 1024,
 		congestionWindowGainConstant: 2.0,
 	}
@@ -168,7 +172,12 @@ func (b *bbrSender) OnPacketAcked(lastPacketNumber protocol.PacketNumber, ackedB
 	bytesAcked := b.sampler.totalBytesAcked - totalBytesAckedBefore
 
 	b.updateAckAggregationBytes(eventTime, bytesAcked)
-	b.onCongestionEvent(lastPacketNumber, ackedBytes, math.MaxUint64, priorInFlight, eventTime, isRoundStart, minRttExpired)
+	b.onCongestionEvent(lastPacketNumber, ackedBytes, math.MaxInt64, priorInFlight, eventTime, isRoundStart, minRttExpired)
+}
+
+func (b *bbrSender) SetMaxDatagramSize(protocol.ByteCount) {
+	// TODO: handle changes in max datagram size.  According to the cubic
+	// implementation this can only legally go up... (it panics if it goes down)
 }
 
 func (b *bbrSender) updateAckAggregationBytes(ackTime time.Time, bytesAcked protocol.ByteCount) {
@@ -286,7 +295,7 @@ func (b *bbrSender) updateRoundTripCounter(lastAckedPacket protocol.PacketNumber
 
 func (b *bbrSender) OnPacketLost(number protocol.PacketNumber, lostBytes protocol.ByteCount, priorInFlight protocol.ByteCount) {
 	b.sampler.OnPacketLost(number)
-	b.onCongestionEvent(number, math.MaxUint64, lostBytes, priorInFlight, time.Now(), false, false)
+	b.onCongestionEvent(number, math.MaxInt64, lostBytes, priorInFlight, time.Now(), false, false)
 }
 
 func (b *bbrSender) onCongestionEvent(number protocol.PacketNumber,
@@ -298,7 +307,7 @@ func (b *bbrSender) onCongestionEvent(number protocol.PacketNumber,
 	//
 
 	if b.mode == BBR_PROBE_BW {
-		b.updateGainCyclePhase(eventTime, priorInFlight, lostBytes != math.MaxUint64)
+		b.updateGainCyclePhase(eventTime, priorInFlight, lostBytes != math.MaxInt64)
 	}
 
 	// Handle logic specific to STARTUP and DRAIN modes.
@@ -336,8 +345,8 @@ func (b *bbrSender) calculateRecoveryWindow(ackedBytes, lostBytes protocol.ByteC
 	// Set up the initial recovery window.
 	if b.recoveryWindow == 0 {
 		b.recoveryWindow = priorInFlight + ackedBytes
-		if bbrMinimumCongestionWindow > b.recoveryWindow {
-			b.recoveryWindow = bbrMinimumCongestionWindow
+		if b.minCongestionWindow > b.recoveryWindow {
+			b.recoveryWindow = b.minCongestionWindow
 			return
 		}
 	}
@@ -358,8 +367,8 @@ func (b *bbrSender) calculateRecoveryWindow(ackedBytes, lostBytes protocol.ByteC
 	// |bytes_acked| in response.
 	//   recovery_window_ = std::max(
 	// 	recovery_window_, unacked_packets_->bytes_in_flight() + bytes_acked);
-	if bbrMinimumCongestionWindow > b.recoveryWindow {
-		b.recoveryWindow = bbrMinimumCongestionWindow
+	if b.minCongestionWindow > b.recoveryWindow {
+		b.recoveryWindow = b.minCongestionWindow
 	}
 }
 
@@ -394,8 +403,8 @@ func (b *bbrSender) calculateCongestionWindow(ackedBytes protocol.ByteCount) {
 	// Enforce the limits on the congestion window.
 
 	// congestion_window_ = std::max(congestion_window_, kMinimumCongestionWindow);
-	if b.congestionWindow < bbrMinimumCongestionWindow {
-		b.congestionWindow = bbrMinimumCongestionWindow
+	if b.congestionWindow < b.minCongestionWindow {
+		b.congestionWindow = b.minCongestionWindow
 	}
 
 	// congestion_window_ = std::min(congestion_window_, max_congestion_window_)£ mode;
@@ -452,7 +461,7 @@ func (b *bbrSender) maybeEnterOrExitProbeRtt(eventTime time.Time, isRoundStart, 
 			// PROBE_RTT.  The CWND during PROBE_RTT is kMinimumCongestionWindow, but
 			// we allow an extra packet since QUIC checks CWND before sending a
 			// packet.
-			if priorInFlight < bbrMinimumCongestionWindow+maxDatagramSize {
+			if priorInFlight < b.minCongestionWindow+maxDatagramSize {
 				b.exitProbeRTTat = time.Now().Add(bbrProbeRttTime)
 				b.probeRTTRoundPassed = false
 			}
@@ -575,10 +584,10 @@ func (b *bbrSender) getTargetCongestionWindow(gain float64) protocol.ByteCount {
 		congestionWindow = protocol.ByteCount(float64(gain) * float64(b.initialCongestionWindow))
 	}
 
-	if congestionWindow > bbrMinimumCongestionWindow {
+	if congestionWindow > b.minCongestionWindow {
 		return congestionWindow
 	}
-	return bbrMinimumCongestionWindow
+	return b.minCongestionWindow
 }
 
 func (b *bbrSender) OnRetransmissionTimeout(packetsRetransmitted bool) {
@@ -595,7 +604,7 @@ func (b *bbrSender) InRecovery() bool {
 
 func (b *bbrSender) GetCongestionWindow() protocol.ByteCount {
 	if b.mode == BBR_PROBE_RTT {
-		return minCongestionWindow
+		return b.minCongestionWindow
 	}
 
 	if b.InRecovery() && !b.rateBasedRecovery {
