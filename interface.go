@@ -335,6 +335,8 @@ type Config struct {
 	// Enable QUIC datagram support (RFC 9221).
 	EnableDatagrams bool
 	Tracer          logging.Tracer
+	// UseBBR switches between CUBIC (false) and BBR (true) being used as a congestion control algro
+	UseBBR bool
 }
 
 // ConnectionState records basic details about a QUIC connection
