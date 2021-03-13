@@ -16,7 +16,8 @@ func NewAckHandler(
 	tracer logging.ConnectionTracer,
 	logger utils.Logger,
 	version protocol.VersionNumber,
+	useBBR bool,
 ) (SentPacketHandler, ReceivedPacketHandler) {
-	sph := newSentPacketHandler(initialPacketNumber, rttStats, pers, traceCallback, tracer, logger)
+	sph := newSentPacketHandler(initialPacketNumber, rttStats, pers, traceCallback, tracer, logger, useBBR)
 	return sph, newReceivedPacketHandler(sph, rttStats, logger, version)
 }
