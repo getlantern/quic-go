@@ -296,6 +296,7 @@ var newConnection = func(
 		s.tracer,
 		s.logger,
 		s.version,
+		conf.UseBBR,
 	)
 	initialStream := newCryptoStream()
 	handshakeStream := newCryptoStream()
@@ -427,6 +428,7 @@ var newClientConnection = func(
 		s.tracer,
 		s.logger,
 		s.version,
+		conf.UseBBR,
 	)
 	initialStream := newCryptoStream()
 	handshakeStream := newCryptoStream()
