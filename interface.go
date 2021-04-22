@@ -262,6 +262,8 @@ type Config struct {
 	StatelessResetKey []byte
 	// KeepAlive defines whether this peer will periodically send a packet to keep the connection alive.
 	KeepAlive bool
+	// UseBBR switches between CUBIC (false) and BBR (true) being used as a congestion control algro
+	UseBBR bool
 	// QUIC Event Tracer.
 	// Warning: Experimental. This API should not be considered stable and will change soon.
 	QuicTracer quictrace.Tracer

@@ -74,6 +74,8 @@ var _ = Describe("Config", func() {
 				f.Set(reflect.ValueOf(quictrace.NewTracer()))
 			case "Tracer":
 				f.Set(reflect.ValueOf(mocks.NewMockTracer(mockCtrl)))
+			case "UseBBR":
+				f.Set(reflect.ValueOf(false))
 			default:
 				Fail(fmt.Sprintf("all fields must be accounted for, but saw unknown field %q", fn))
 			}
