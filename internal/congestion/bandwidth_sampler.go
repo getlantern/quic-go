@@ -100,7 +100,6 @@ func (s *BandwidthSampler) OnPacketAcknowledged(ackTime time.Time,
 
 	sentPacketState := s.connectionStateMap[packetNumber]
 	if sentPacketState == nil {
-		log.Printf("£ yup, it's nil")
 		return BandwidthSample{
 			Bandwidth:    0,
 			RTT:          -1,
@@ -135,7 +134,6 @@ func (s *BandwidthSampler) OnPacketAcknowledgedInner(ackTime time.Time,
 	if sentPacketState.lastAckedPacketSentTime.IsZero() {
 		return BandwidthSample{}
 	}
-	log.Printf("£ Sanity check %v", sentPacketState.lastAckedPacketSentTime)
 
 	// Infinite rate indicates that the sampler is supposed to discard the
 	// current send rate sample and use only the ack rate.
