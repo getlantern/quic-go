@@ -175,9 +175,10 @@ func (b *bbrSender) OnPacketAcked(lastPacketNumber protocol.PacketNumber, ackedB
 	b.onCongestionEvent(lastPacketNumber, ackedBytes, math.MaxInt64, priorInFlight, eventTime, isRoundStart, minRttExpired)
 }
 
-func (b *bbrSender) SetMaxDatagramSize(protocol.ByteCount) {
-	// TODO: handle changes in max datagram size.  According to the cubic
-	// implementation this can only legally go up... (it panics if it goes down)
+func (b *bbrSender) SetMaxDatagramSize(sz protocol.ByteCount) {
+	// According to the cubic implementation this can only legally go up...
+	// (it panics if it goes down)
+	b.congestionWindow = sz
 }
 
 func (b *bbrSender) updateAckAggregationBytes(ackTime time.Time, bytesAcked protocol.ByteCount) {
