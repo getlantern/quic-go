@@ -2004,6 +2004,6 @@ func (s *connection) NextConnection() Connection {
 	return s
 }
 
-func (s *session) BandwidthEstimate() Bandwidth {
+func (s *connection) BandwidthEstimate() Bandwidth {
 	return s.sentPacketHandler.GetBandwidthEstimate()
 }

@@ -68,15 +68,15 @@ func (mr *MockQuicConnMockRecorder) AcceptUniStream(arg0 interface{}) *gomock.Ca
 }
 
 // BandwidthEstimate mocks base method.
-func (m *MockQuicSession) BandwidthEstimate() congestion.Bandwidth {
+func (m *MockQuicConn) BandwidthEstimate() congestion.Bandwidth {
 	ret := m.ctrl.Call(m, "BandwidthEstimate")
 	ret0, _ := ret[0].(congestion.Bandwidth)
 	return ret0
 }
 
 // BandwidthEstimate indicates an expected call of BandwidthEstimate.
-func (mr *MockQuicSessionMockRecorder) BandwidthEstimate() *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthEstimate", reflect.TypeOf((*MockQuicSession)(nil).BandwidthEstimate))
+func (mr *MockQuicConnMockRecorder) BandwidthEstimate() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BandwidthEstimate", reflect.TypeOf((*MockQuicConn)(nil).BandwidthEstimate))
 }
 
 // CloseWithError mocks base method.
