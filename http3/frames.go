@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 
 	"github.com/lucas-clemente/quic-go/internal/protocol"
 	"github.com/lucas-clemente/quic-go/quicvarint"
@@ -14,7 +13,7 @@ import (
 // FrameType is the frame type of a HTTP/3 frame
 type FrameType uint64
 
-type unknownFrameHandlerFunc func(FrameType) (processed bool, err error)
+type unknownFrameHandlerFunc func(FrameType, error) (processed bool, err error)
 
 type frame interface{}
 
@@ -25,19 +24,27 @@ func parseNextFrame(r io.Reader, unknownFrameHandler unknownFrameHandlerFunc) (f
 	for {
 		t, err := quicvarint.Read(qr)
 		if err != nil {
+			if unknownFrameHandler != nil {
+				hijacked, err := unknownFrameHandler(0, err)
+				if err != nil {
+					return nil, err
+				}
+				if hijacked {
+					return nil, errHijacked
+				}
+			}
 			return nil, err
 		}
 		// Call the unknownFrameHandler for frames not defined in the HTTP/3 spec
 		if t > 0xd && unknownFrameHandler != nil {
-			hijacked, err := unknownFrameHandler(FrameType(t))
+			hijacked, err := unknownFrameHandler(FrameType(t), nil)
 			if err != nil {
 				return nil, err
 			}
-			// If the unknownFrameHandler didn't process the frame, it is our responsibility to skip it.
 			if hijacked {
 				return nil, errHijacked
 			}
-			continue
+			// If the unknownFrameHandler didn't process the frame, it is our responsibility to skip it.
 		}
 		l, err := quicvarint.Read(qr)
 		if err != nil {
@@ -57,7 +64,7 @@ func parseNextFrame(r io.Reader, unknownFrameHandler unknownFrameHandlerFunc) (f
 		case 0xd: // MAX_PUSH_ID
 		}
 		// skip over unknown frames
-		if _, err := io.CopyN(ioutil.Discard, qr, int64(l)); err != nil {
+		if _, err := io.CopyN(io.Discard, qr, int64(l)); err != nil {
 			return nil, err
 		}
 	}

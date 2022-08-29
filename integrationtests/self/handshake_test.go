@@ -12,6 +12,7 @@ import (
 	"github.com/lucas-clemente/quic-go"
 	"github.com/lucas-clemente/quic-go/integrationtests/tools/israce"
 	"github.com/lucas-clemente/quic-go/internal/protocol"
+	"github.com/lucas-clemente/quic-go/internal/qerr"
 	"github.com/lucas-clemente/quic-go/logging"
 
 	. "github.com/onsi/ginkgo"
@@ -49,7 +50,7 @@ func (c *tokenStore) Pop(key string) *quic.ClientToken {
 }
 
 type versionNegotiationTracer struct {
-	connTracer
+	logging.NullConnectionTracer
 
 	loggedVersions                 bool
 	receivedVersionNegotiation     bool
@@ -345,12 +346,6 @@ var _ = Describe("Handshake tests", func() {
 		}
 
 		BeforeEach(func() {
-			serverConfig.AcceptToken = func(addr net.Addr, token *quic.Token) bool {
-				if token != nil {
-					Expect(token.IsRetryToken).To(BeFalse())
-				}
-				return true
-			}
 			var err error
 			// start the server, but don't call Accept
 			server, err = quic.ListenAddr("localhost:0", getTLSConfig(), serverConfig)
@@ -480,14 +475,6 @@ var _ = Describe("Handshake tests", func() {
 
 	Context("using tokens", func() {
 		It("uses tokens provided in NEW_TOKEN frames", func() {
-			tokenChan := make(chan *quic.Token, 100)
-			serverConfig.AcceptToken = func(addr net.Addr, token *quic.Token) bool {
-				if token != nil && !token.IsRetryToken {
-					tokenChan <- token
-				}
-				return true
-			}
-
 			server, err := quic.ListenAddr("localhost:0", getTLSConfig(), serverConfig)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -510,7 +497,6 @@ var _ = Describe("Handshake tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(gets).To(Receive())
 			Eventually(puts).Should(Receive())
-			Expect(tokenChan).ToNot(Receive())
 			// received a token. Close this connection.
 			Expect(conn.CloseWithError(0, "")).To(Succeed())
 
@@ -530,17 +516,13 @@ var _ = Describe("Handshake tests", func() {
 			Expect(err).ToNot(HaveOccurred())
 			defer conn.CloseWithError(0, "")
 			Expect(gets).To(Receive())
-			Expect(tokenChan).To(Receive())
 
 			Eventually(done).Should(BeClosed())
 		})
 
 		It("rejects invalid Retry token with the INVALID_TOKEN error", func() {
-			tokenChan := make(chan *quic.Token, 10)
-			serverConfig.AcceptToken = func(addr net.Addr, token *quic.Token) bool {
-				tokenChan <- token
-				return false
-			}
+			serverConfig.RequireAddressValidation = func(net.Addr) bool { return true }
+			serverConfig.MaxRetryTokenAge = time.Nanosecond
 
 			server, err := quic.ListenAddr("localhost:0", getTLSConfig(), serverConfig)
 			Expect(err).ToNot(HaveOccurred())
@@ -555,18 +537,39 @@ var _ = Describe("Handshake tests", func() {
 			var transportErr *quic.TransportError
 			Expect(errors.As(err, &transportErr)).To(BeTrue())
 			Expect(transportErr.ErrorCode).To(Equal(quic.InvalidToken))
-			// Receiving a Retry might lead the client to measure a very small RTT.
-			// Then, it sometimes would retransmit the ClientHello before receiving the ServerHello.
-			Expect(len(tokenChan)).To(BeNumerically(">=", 2))
-			token := <-tokenChan
-			Expect(token).To(BeNil())
-			token = <-tokenChan
-			Expect(token).ToNot(BeNil())
-			// If the ClientHello was retransmitted, make sure that it contained the same Retry token.
-			for i := 2; i < len(tokenChan); i++ {
-				Expect(<-tokenChan).To(Equal(token))
-			}
-			Expect(token.IsRetryToken).To(BeTrue())
 		})
+	})
+
+	It("doesn't send any packets when generating the ClientHello fails", func() {
+		ln, err := net.ListenUDP("udp", nil)
+		Expect(err).ToNot(HaveOccurred())
+		done := make(chan struct{})
+		packetChan := make(chan struct{})
+		go func() {
+			defer GinkgoRecover()
+			defer close(done)
+			for {
+				_, _, err := ln.ReadFromUDP(make([]byte, protocol.MaxPacketBufferSize))
+				if err != nil {
+					return
+				}
+				packetChan <- struct{}{}
+			}
+		}()
+
+		tlsConf := getTLSClientConfig()
+		tlsConf.NextProtos = []string{""}
+		_, err = quic.DialAddr(
+			fmt.Sprintf("localhost:%d", ln.LocalAddr().(*net.UDPAddr).Port),
+			tlsConf,
+			nil,
+		)
+		Expect(err).To(MatchError(&qerr.TransportError{
+			ErrorCode:    qerr.InternalError,
+			ErrorMessage: "tls: invalid NextProtos value",
+		}))
+		Consistently(packetChan).ShouldNot(Receive())
+		ln.Close()
+		Eventually(done).Should(BeClosed())
 	})
 })

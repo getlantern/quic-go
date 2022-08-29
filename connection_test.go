@@ -37,12 +37,6 @@ func areConnsRunning() bool {
 	return strings.Contains(b.String(), "quic-go.(*connection).run")
 }
 
-func areClosedConnsRunning() bool {
-	var b bytes.Buffer
-	pprof.Lookup("goroutine").WriteTo(&b, 1)
-	return strings.Contains(b.String(), "quic-go.(*closedLocalConn).run")
-}
-
 var _ = Describe("Connection", func() {
 	var (
 		conn          *connection
@@ -72,11 +66,11 @@ var _ = Describe("Connection", func() {
 	}
 
 	expectReplaceWithClosed := func() {
-		connRunner.EXPECT().ReplaceWithClosed(clientDestConnID, gomock.Any()).MaxTimes(1)
-		connRunner.EXPECT().ReplaceWithClosed(srcConnID, gomock.Any()).Do(func(_ protocol.ConnectionID, s packetHandler) {
-			Expect(s).To(BeAssignableToTypeOf(&closedLocalConn{}))
-			s.shutdown()
-			Eventually(areClosedConnsRunning).Should(BeFalse())
+		connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(connIDs []protocol.ConnectionID, _ protocol.Perspective, _ []byte) {
+			Expect(connIDs).To(ContainElement(srcConnID))
+			if len(connIDs) > 1 {
+				Expect(connIDs).To(ContainElement(clientDestConnID))
+			}
 		})
 	}
 
@@ -106,6 +100,7 @@ var _ = Describe("Connection", func() {
 			populateServerConfig(&Config{DisablePathMTUDiscovery: true}),
 			nil, // tls.Config
 			tokenGenerator,
+			false,
 			false,
 			tracer,
 			1234,
@@ -329,11 +324,8 @@ var _ = Describe("Connection", func() {
 				ErrorMessage: "foobar",
 			}
 			streamManager.EXPECT().CloseWithError(expectedErr)
-			connRunner.EXPECT().ReplaceWithClosed(srcConnID, gomock.Any()).Do(func(_ protocol.ConnectionID, s packetHandler) {
-				Expect(s).To(BeAssignableToTypeOf(&closedRemoteConn{}))
-			})
-			connRunner.EXPECT().ReplaceWithClosed(clientDestConnID, gomock.Any()).Do(func(_ protocol.ConnectionID, s packetHandler) {
-				Expect(s).To(BeAssignableToTypeOf(&closedRemoteConn{}))
+			connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(connIDs []protocol.ConnectionID, _ protocol.Perspective, _ []byte) {
+				Expect(connIDs).To(ConsistOf(clientDestConnID, srcConnID))
 			})
 			cryptoSetup.EXPECT().Close()
 			gomock.InOrder(
@@ -360,11 +352,8 @@ var _ = Describe("Connection", func() {
 				ErrorMessage: "foobar",
 			}
 			streamManager.EXPECT().CloseWithError(testErr)
-			connRunner.EXPECT().ReplaceWithClosed(srcConnID, gomock.Any()).Do(func(_ protocol.ConnectionID, s packetHandler) {
-				Expect(s).To(BeAssignableToTypeOf(&closedRemoteConn{}))
-			})
-			connRunner.EXPECT().ReplaceWithClosed(clientDestConnID, gomock.Any()).Do(func(_ protocol.ConnectionID, s packetHandler) {
-				Expect(s).To(BeAssignableToTypeOf(&closedRemoteConn{}))
+			connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(connIDs []protocol.ConnectionID, _ protocol.Perspective, _ []byte) {
+				Expect(connIDs).To(ConsistOf(clientDestConnID, srcConnID))
 			})
 			cryptoSetup.EXPECT().Close()
 			gomock.InOrder(
@@ -564,7 +553,7 @@ var _ = Describe("Connection", func() {
 			runConn()
 			cryptoSetup.EXPECT().Close()
 			streamManager.EXPECT().CloseWithError(gomock.Any())
-			connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any()).AnyTimes()
+			connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 			buf := &bytes.Buffer{}
 			hdr := &wire.ExtendedHeader{
 				Header:          wire.Header{DestConnectionID: srcConnID},
@@ -674,8 +663,7 @@ var _ = Describe("Connection", func() {
 		})
 
 		It("drops Version Negotiation packets", func() {
-			b, err := wire.ComposeVersionNegotiation(srcConnID, destConnID, conn.config.Versions)
-			Expect(err).ToNot(HaveOccurred())
+			b := wire.ComposeVersionNegotiation(srcConnID, destConnID, conn.config.Versions)
 			tracer.EXPECT().DroppedPacket(logging.PacketTypeVersionNegotiation, protocol.ByteCount(len(b)), logging.PacketDropUnexpectedPacket)
 			Expect(conn.handlePacketImpl(&receivedPacket{
 				data:   b,
@@ -1692,11 +1680,7 @@ var _ = Describe("Connection", func() {
 			written := make(chan struct{}, 1)
 			sender.EXPECT().WouldBlock().AnyTimes()
 			sender.EXPECT().Send(gomock.Any()).DoAndReturn(func(p *packetBuffer) { written <- struct{}{} })
-			gomock.InOrder(
-				mtuDiscoverer.EXPECT().NextProbeTime(),
-				mtuDiscoverer.EXPECT().ShouldSendProbe(gomock.Any()).Return(true),
-				mtuDiscoverer.EXPECT().NextProbeTime(),
-			)
+			mtuDiscoverer.EXPECT().ShouldSendProbe(gomock.Any()).Return(true)
 			ping := ackhandler.Frame{Frame: &wire.PingFrame{}}
 			mtuDiscoverer.EXPECT().GetPing().Return(ping, protocol.ByteCount(1234))
 			packer.EXPECT().PackMTUProbePacket(ping, protocol.ByteCount(1234)).Return(getPacket(1), nil)
@@ -2107,7 +2091,7 @@ var _ = Describe("Connection", func() {
 
 		BeforeEach(func() {
 			conn.config.MaxIdleTimeout = 30 * time.Second
-			conn.config.KeepAlive = true
+			conn.config.KeepAlivePeriod = 15 * time.Second
 			conn.receivedPacketHandler.ReceivedPacket(0, protocol.ECNNon, protocol.EncryptionHandshake, time.Now(), true)
 		})
 
@@ -2151,7 +2135,7 @@ var _ = Describe("Connection", func() {
 
 		It("doesn't send a PING packet if keep-alive is disabled", func() {
 			setRemoteIdleTimeout(5 * time.Second)
-			conn.config.KeepAlive = false
+			conn.config.KeepAlivePeriod = 0
 			conn.lastPacketReceivedTime = time.Now().Add(-time.Second * 5 / 2)
 			runConn()
 			// don't EXPECT() any calls to mconn.Write()
@@ -2437,10 +2421,7 @@ var _ = Describe("Client Connection", func() {
 	}
 
 	expectReplaceWithClosed := func() {
-		connRunner.EXPECT().ReplaceWithClosed(srcConnID, gomock.Any()).Do(func(_ protocol.ConnectionID, s packetHandler) {
-			s.shutdown()
-			Eventually(areClosedConnsRunning).Should(BeFalse())
-		})
+		connRunner.EXPECT().ReplaceWithClosed([]protocol.ConnectionID{srcConnID}, gomock.Any(), gomock.Any())
 	}
 
 	BeforeEach(func() {
@@ -2482,6 +2463,7 @@ var _ = Describe("Client Connection", func() {
 		conn.packer = packer
 		cryptoSetup = mocks.NewMockCryptoSetup(mockCtrl)
 		conn.cryptoStreamHandler = cryptoSetup
+		conn.sentFirstPacket = true
 	})
 
 	It("changes the connection ID when receiving the first packet from the server", func() {
@@ -2573,6 +2555,25 @@ var _ = Describe("Client Connection", func() {
 		Expect(conn.handleAckFrame(ack, protocol.Encryption1RTT)).To(Succeed())
 	})
 
+	It("doesn't send a CONNECTION_CLOSE when no packet was sent", func() {
+		conn.sentFirstPacket = false
+		tracer.EXPECT().ClosedConnection(gomock.Any())
+		tracer.EXPECT().Close()
+		running := make(chan struct{})
+		cryptoSetup.EXPECT().RunHandshake().Do(func() {
+			close(running)
+			conn.closeLocal(errors.New("early error"))
+		})
+		cryptoSetup.EXPECT().Close()
+		connRunner.EXPECT().Remove(gomock.Any())
+		go func() {
+			defer GinkgoRecover()
+			conn.run()
+		}()
+		Eventually(running).Should(BeClosed())
+		Eventually(areConnsRunning).Should(BeFalse())
+	})
+
 	Context("handling tokens", func() {
 		var mockTokenStore *MockTokenStore
 
@@ -2592,8 +2593,7 @@ var _ = Describe("Client Connection", func() {
 
 	Context("handling Version Negotiation", func() {
 		getVNP := func(versions ...protocol.VersionNumber) *receivedPacket {
-			b, err := wire.ComposeVersionNegotiation(srcConnID, destConnID, versions)
-			Expect(err).ToNot(HaveOccurred())
+			b := wire.ComposeVersionNegotiation(srcConnID, destConnID, versions)
 			return &receivedPacket{
 				data:   b,
 				buffer: getPacketBuffer(),
@@ -2752,10 +2752,7 @@ var _ = Describe("Client Connection", func() {
 
 		expectClose := func(applicationClose bool) {
 			if !closed {
-				connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any()).Do(func(_ protocol.ConnectionID, s packetHandler) {
-					Expect(s).To(BeAssignableToTypeOf(&closedLocalConn{}))
-					s.shutdown()
-				})
+				connRunner.EXPECT().ReplaceWithClosed(gomock.Any(), gomock.Any(), gomock.Any())
 				if applicationClose {
 					packer.EXPECT().PackApplicationClose(gomock.Any()).Return(&coalescedPacket{buffer: getPacketBuffer()}, nil).MaxTimes(1)
 				} else {
